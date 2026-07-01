@@ -1,0 +1,91 @@
+{
+  "template_id": "new_year",
+  "description": "new year greeting poster - personalized with employee names ",
+  "type": "poster",
+  "tags": [
+    "new year",
+    "resolutions"
+  ],
+  "base_image": "templates/new_year/template.png",
+  "canvas": {
+    "width": 1587,
+    "height": 2245
+  },
+  "overlay_layers": [
+    {
+      "id": "heading",
+      "type": "text",
+      "placeholder": "{{heading}}",
+      "instruction": "Describe event",
+      "llm_can_invent": false,
+      "box": {
+        "x": 456,
+        "y": 741,
+        "width": 743,
+        "height": 318
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 55,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "caption",
+      "type": "text",
+      "placeholder": "{{caption}}",
+      "instruction": "Describe caption for the event",
+      "llm_can_invent": true,
+      "box": {
+        "x": 440,
+        "y": 1106,
+        "width": 767,
+        "height": 107
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Describe name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 530,
+        "y": 1234,
+        "width": 535,
+        "height": 88
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 40,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    }
+  ]
+}

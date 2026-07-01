@@ -1,0 +1,118 @@
+{
+  "template_id": "hiring",
+  "description": "hiring poster for colleges, - personalized with college names",
+  "type": "poster",
+  "tags": [
+    "hiring",
+    "colleges",
+    "students",
+    "jobs"
+  ],
+  "base_image": "templates/hiring/template.png",
+  "canvas": {
+    "width": 848,
+    "height": 1264
+  },
+  "overlay_layers": [
+    {
+      "id": "pattern",
+      "type": "image",
+      "placeholder": "{{pattern}}",
+      "instruction": "pattern on poster",
+      "llm_can_invent": true,
+      "box": {
+        "x": 655,
+        "y": 34,
+        "width": 150,
+        "height": 120
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "heading",
+      "type": "text",
+      "placeholder": "{{heading}}",
+      "instruction": "Describe event",
+      "llm_can_invent": false,
+      "box": {
+        "x": 143,
+        "y": 173,
+        "width": 592,
+        "height": 179
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 55,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "caption",
+      "type": "text",
+      "placeholder": "{{caption}}",
+      "instruction": "Describe caption for the event",
+      "llm_can_invent": true,
+      "box": {
+        "x": 44,
+        "y": 919,
+        "width": 750,
+        "height": 143
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Describe college name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 239,
+        "y": 834,
+        "width": 379,
+        "height": 48
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 40,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    }
+  ]
+}
