@@ -1,0 +1,192 @@
+{
+  "template_id": "openingnewbranch01",
+  "description": "New branch opening poster - personalized with employee names",
+  "type": "poster",
+  "tags": [
+    "gangaur",
+    "festival",
+    "greeting"
+  ],
+  "base_image": "templates/openingnewbranch01/template.png",
+  "canvas": {
+    "width": 1587,
+    "height": 2245
+  },
+  "overlay_layers": [
+    {
+      "id": "Name",
+      "type": "text",
+      "placeholder": "{{Name}}",
+      "instruction": "Enter Employee Name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 467,
+        "y": 1383,
+        "width": 679,
+        "height": 67
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 45,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#121212",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "Branch_Address",
+      "type": "text",
+      "placeholder": "{{Branch_Address}}",
+      "instruction": "Enter the address and city",
+      "llm_can_invent": false,
+      "box": {
+        "x": 470,
+        "y": 1457,
+        "width": 657,
+        "height": 60
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 45,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "Headline",
+      "type": "text",
+      "placeholder": "{{Headline}}",
+      "instruction": "Describe what text goes here",
+      "llm_can_invent": false,
+      "box": {
+        "x": 247,
+        "y": 662,
+        "width": 1089,
+        "height": 310
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "Greeting",
+      "type": "text",
+      "placeholder": "{{Greeting}}",
+      "instruction": "Type the greeting",
+      "llm_can_invent": true,
+      "box": {
+        "x": 245,
+        "y": 1158,
+        "width": 1129,
+        "height": 230
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "Date",
+      "type": "text",
+      "placeholder": "{{Date}}",
+      "instruction": "Enter the event date",
+      "llm_can_invent": false,
+      "box": {
+        "x": 606,
+        "y": 1521,
+        "width": 396,
+        "height": 41
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 40,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "Time",
+      "type": "text",
+      "placeholder": "{{Time}}",
+      "instruction": "Enter event timings",
+      "llm_can_invent": false,
+      "box": {
+        "x": 712,
+        "y": 1570,
+        "width": 200,
+        "height": 60
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 40,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "Logo",
+      "type": "image",
+      "placeholder": "{{Logo}}",
+      "instruction": "company logo",
+      "llm_can_invent": false,
+      "box": {
+        "x": 622,
+        "y": 193,
+        "width": 360,
+        "height": 326
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    }
+  ]
+}

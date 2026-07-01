@@ -1,0 +1,91 @@
+{
+  "template_id": "teej",
+  "description": "teej greeting poster - personalized with employee names ",
+  "type": "poster",
+  "tags": [
+    "Teej",
+    "Rajasthan's festival"
+  ],
+  "base_image": "templates/teej/template.png",
+  "canvas": {
+    "width": 1587,
+    "height": 2245
+  },
+  "overlay_layers": [
+    {
+      "id": "heading",
+      "type": "text",
+      "placeholder": "{{heading}}",
+      "instruction": "Describe event",
+      "llm_can_invent": false,
+      "box": {
+        "x": 105,
+        "y": 437,
+        "width": 847,
+        "height": 481
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 55,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "caption",
+      "type": "text",
+      "placeholder": "{{caption}}",
+      "instruction": "Describe caption for the event",
+      "llm_can_invent": true,
+      "box": {
+        "x": 115,
+        "y": 943,
+        "width": 609,
+        "height": 375
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Describe name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 120,
+        "y": 1375,
+        "width": 535,
+        "height": 88
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 40,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    }
+  ]
+}

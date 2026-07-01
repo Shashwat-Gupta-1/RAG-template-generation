@@ -1,0 +1,117 @@
+{
+  "template_id": "gangaur",
+  "description": "gangaur festival greeting poster, Rajasthan's festival - personalized with employee's names",
+  "type": "poster",
+  "tags": [
+    "gangaur",
+    "festival",
+    "greeting"
+  ],
+  "base_image": "templates/gangaur/template.png",
+  "canvas": {
+    "width": 848,
+    "height": 1264
+  },
+  "overlay_layers": [
+    {
+      "id": "pattern",
+      "type": "image",
+      "placeholder": "{{pattern}}",
+      "instruction": "pattern on poster",
+      "llm_can_invent": true,
+      "box": {
+        "x": 670,
+        "y": 11,
+        "width": 150,
+        "height": 120
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "heading",
+      "type": "text",
+      "placeholder": "{{heading}}",
+      "instruction": "Describe event",
+      "llm_can_invent": false,
+      "box": {
+        "x": 143,
+        "y": 173,
+        "width": 592,
+        "height": 179
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 55,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "greeting",
+      "type": "text",
+      "placeholder": "{{greeting}}",
+      "instruction": "Describe greeting for the event",
+      "llm_can_invent": true,
+      "box": {
+        "x": 165,
+        "y": 847,
+        "width": 501,
+        "height": 42
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    },
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Describe employee name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 290,
+        "y": 969,
+        "width": 274,
+        "height": 50
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 40,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle",
+        "letter_spacing": 0
+      },
+      "editable": true
+    }
+  ]
+}
