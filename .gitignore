@@ -1,0 +1,11 @@
+.env
+.venv/
+venv/
+output/
+chroma_db/
+jobs.db
+__pycache__/
+*.pyc
+.DS_Store
+.pytest_cache/
+uvicorn_run.log
