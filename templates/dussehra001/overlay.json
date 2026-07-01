@@ -1,0 +1,39 @@
+{
+  "template_id": "msfincap_dussehra",
+  "description": "dussehra festival greeting poster containing name overlay",
+  "type": "poster",
+  "tags": [
+    "dussehra",
+    "festival"
+  ],
+  "base_image": "templates/dussehra001/msfc dussehra.png",
+  "canvas": {
+    "width": 1696,
+    "height": 2528
+  },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "name of the person",
+      "llm_can_invent": false,
+      "box": {
+        "x": 516,
+        "y": 1906,
+        "width": 644,
+        "height": 140
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "color": "#D21414",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}
