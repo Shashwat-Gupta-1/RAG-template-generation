@@ -1,12 +1,11 @@
 {
-  "template_id": "msfincap_dussehra",
-  "description": "dussehra festival greeting poster containing name overlay",
+  "template_id": "dussehra001",
+  "description": "Dussehra Vijayadashami festival greeting poster for MS Fincap employees and customers with personalized recipient name overlay celebrating victory of good over evil",
   "type": "poster",
   "tags": [
-    "dussehra",
-    "festival"
+    "dussehra", "vijayadashami", "festival", "greeting", "celebration", "navratri"
   ],
-  "base_image": "templates/dussehra001/msfc dussehra.png",
+  "base_image": "templates/dussehra/dussehra001/template.png",
   "canvas": {
     "width": 1696,
     "height": 2528

@@ -1,28 +1,26 @@
 {
-  "template_id": "loan_offers",
-  "description": "current loan offers - personalized with names , mobile number and city",
+  "template_id": "gangaur",
+  "description": "Gangaur festival greeting poster for MS Fincap employees celebrating Rajasthani Gauri Puja spring festival with personalized recipient name overlay",
   "type": "poster",
   "tags": [
-    "loan offers",
-    "discounts"
-  ],
-  "base_image": "templates/loan_offers/template.png",
+    "gangaur", "festival", "greeting", "rajasthan", "gauri", "spring"],
+  "base_image": "templates/gangaur/gangaur001/template.png",
   "canvas": {
-    "width": 768,
-    "height": 1376
+    "width": 848,
+    "height": 1264
   },
   "overlay_layers": [
     {
       "id": "pattern",
       "type": "image",
       "placeholder": "{{pattern}}",
-      "instruction": "pattern",
+      "instruction": "pattern on poster",
       "llm_can_invent": true,
       "box": {
-        "x": 215,
-        "y": 735,
-        "width": 264,
-        "height": 58
+        "x": 670,
+        "y": 11,
+        "width": 150,
+        "height": 120
       },
       "style": {
         "font_family": "Poppins",
@@ -44,10 +42,10 @@
       "instruction": "Describe event",
       "llm_can_invent": false,
       "box": {
-        "x": 20,
-        "y": 215,
-        "width": 738,
-        "height": 155
+        "x": 143,
+        "y": 173,
+        "width": 592,
+        "height": 179
       },
       "style": {
         "font_family": "Poppins",
@@ -63,16 +61,16 @@
       "editable": true
     },
     {
-      "id": "caption",
+      "id": "greeting",
       "type": "text",
-      "placeholder": "{{caption}}",
-      "instruction": "Describe caption for the event",
+      "placeholder": "{{greeting}}",
+      "instruction": "Describe greeting for the event",
       "llm_can_invent": true,
       "box": {
-        "x": 169,
-        "y": 469,
-        "width": 453,
-        "height": 166
+        "x": 165,
+        "y": 847,
+        "width": 501,
+        "height": 42
       },
       "style": {
         "font_family": "Poppins",
@@ -91,42 +89,17 @@
       "id": "name",
       "type": "text",
       "placeholder": "{{name}}",
-      "instruction": "Describe name",
+      "instruction": "Describe employee name",
       "llm_can_invent": false,
       "box": {
-        "x": 211,
-        "y": 659,
-        "width": 379,
-        "height": 48
+        "x": 290,
+        "y": 969,
+        "width": 274,
+        "height": 50
       },
       "style": {
         "font_family": "Poppins",
         "font_size": 40,
-        "font_size_min": 20,
-        "font_weight": "bold",
-        "font_style": "normal",
-        "color": "#FFFFFF",
-        "align": "center",
-        "vertical_align": "middle",
-        "letter_spacing": 0
-      },
-      "editable": true
-    },
-    {
-      "id": "city",
-      "type": "text",
-      "placeholder": "{{city}}",
-      "instruction": "Describe city name",
-      "llm_can_invent": false,
-      "box": {
-        "x": 211,
-        "y": 820,
-        "width": 200,
-        "height": 60
-      },
-      "style": {
-        "font_family": "Poppins",
-        "font_size": 48,
         "font_size_min": 20,
         "font_weight": "bold",
         "font_style": "normal",

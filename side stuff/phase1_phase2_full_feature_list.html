@@ -1,0 +1,326 @@
+
+<h2 class="sr-only">Complete feature list for Phase 1 and Phase 2 of the AI template generation system</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-size:14px;color:var(--text-primary)}
+.page{padding:12px 0;display:flex;flex-direction:column;gap:20px}
+.phase-block{border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
+.phase-header{padding:12px 16px;display:flex;align-items:center;gap:10px}
+.phase-badge{font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px}
+.p1-badge{background:#E1F5EE;color:#085041}
+.p2-badge{background:#EEEDFE;color:#26215C}
+.shared-badge{background:#F1EFE8;color:#2C2C2A}
+.phase-title{font-size:15px;font-weight:500}
+.section{border-top:0.5px solid var(--border);padding:12px 16px}
+.section-label{font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.features{display:flex;flex-direction:column;gap:6px}
+.feat{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:8px;background:var(--surface-1)}
+.feat-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px}
+.fi-teal{background:#E1F5EE;color:#0F6E56}
+.fi-purple{background:#EEEDFE;color:#3C3489}
+.fi-gray{background:#F1EFE8;color:#444441}
+.fi-coral{background:#FAECE7;color:#712B13}
+.fi-amber{background:#FAEEDA;color:#633806}
+.feat-body{flex:1}
+.feat-name{font-size:13px;font-weight:500;line-height:1.3}
+.feat-desc{font-size:12px;color:var(--text-secondary);margin-top:2px;line-height:1.4}
+.feat-tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:6px;margin-top:3px;font-weight:500}
+.tag-p1{background:#E1F5EE;color:#085041}
+.tag-p2{background:#EEEDFE;color:#26215C}
+.tag-both{background:#F1EFE8;color:#444441}
+.tag-new{background:#FAECE7;color:#712B13}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 16px;border-top:0.5px solid var(--border)}
+.stat{background:var(--surface-1);border-radius:8px;padding:10px 12px;text-align:center}
+.stat-num{font-size:22px;font-weight:500;line-height:1}
+.stat-lbl{font-size:11px;color:var(--text-muted);margin-top:3px}
+</style>
+
+<div class="page">
+
+  <div class="stat-row" style="border:0.5px solid var(--border);border-radius:12px;border-top:0.5px solid var(--border)">
+    <div class="stat"><div class="stat-num" style="color:#0F6E56">12</div><div class="stat-lbl">Phase 1 features</div></div>
+    <div class="stat"><div class="stat-num" style="color:#534AB7">11</div><div class="stat-lbl">Phase 2 features</div></div>
+    <div class="stat"><div class="stat-num" style="color:#444441">6</div><div class="stat-lbl">Shared components</div></div>
+    <div class="stat"><div class="stat-num" style="color:#993C1D">29</div><div class="stat-lbl">Total features</div></div>
+  </div>
+
+  <!-- PHASE 1 -->
+  <div class="phase-block">
+    <div class="phase-header" style="background:var(--surface-1)">
+      <span class="phase-badge p1-badge">Phase 1</span>
+      <span class="phase-title">Core template generation pipeline</span>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Template storage and retrieval</div>
+      <div class="features">
+        <div class="feat">
+          <div class="feat-icon fi-teal"><i class="ti ti-database" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">RAG-based template search</div>
+            <div class="feat-desc">ChromaDB stores template descriptions as vectors. User prompt is embedded and compared via cosine similarity. Returns the closest matching template — not by keyword but by meaning.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-teal"><i class="ti ti-file-code" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Overlay JSON schema per template</div>
+            <div class="feat-desc">Every PNG has a paired JSON defining editable fields with box coordinates (x, y, width, height), full style block (font, size, weight, colour, align, letter-spacing), and llm_can_invent flag.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-teal"><i class="ti ti-refresh" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Indexing script</div>
+            <div class="feat-desc">One-time script that reads every overlay.json, embeds description + tags, and saves vector + full JSON to ChromaDB. Re-run only when a new template is added.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Field filling intelligence</div>
+      <div class="features">
+        <div class="feat">
+          <div class="feat-icon fi-teal"><i class="ti ti-arrows-split" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Field split engine</div>
+            <div class="feat-desc">For each overlay field: if data is available (from Excel or prompt) it copies directly. Only sends genuinely missing fields to the LLM. Saves cost and prevents LLM from altering names.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-teal"><i class="ti ti-brain" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Claude API overlay fill</div>
+            <div class="feat-desc">LLM receives only editable field IDs + instructions + user prompt. Returns a flat JSON of field values only. Never sees coordinates, font sizes, or PNG data. System prompt enforces JSON-only output.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-teal"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Confidence checker + fallback form</div>
+            <div class="feat-desc">LLM returns null for fields it cannot extract (e.g. name not in prompt). System detects nulls and shows a fallback form in Streamlit asking the user to fill the missing values before rendering.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-teal"><i class="ti ti-table" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Fuzzy column mapping</div>
+            <div class="feat-desc">When Excel column names differ from overlay field IDs (e.g. "employee_name" vs "name"), LLM maps them once at batch start. Direct copy then used for all rows. No repeated LLM calls for mapping.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Rendering</div>
+      <div class="features two-col">
+        <div class="feat">
+          <div class="feat-icon fi-coral"><i class="ti ti-photo" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Pillow text renderer</div>
+            <div class="feat-desc">Opens PNG read-only, draws text at box coordinates, uses font/colour/style from JSON. Auto-shrinks text from max to min font size until it fits the box width.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-coral"><i class="ti ti-circle" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Image placeholder rendering</div>
+            <div class="feat-desc">Uploaded photos resized to box dimensions, optionally circle-cropped, pasted at specified coordinates. LLM never involved with image fields.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-coral"><i class="ti ti-file-zip" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Excel bulk loop + ZIP output</div>
+            <div class="feat-desc">Pandas reads Excel. Template fetched once. LLM + renderer called per row. Each person gets a separate PNG. All zipped and returned to Streamlit for one-click download.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-coral"><i class="ti ti-lock" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Immutable source files</div>
+            <div class="feat-desc">Original PNG and overlay.json are always read-only. Only new output files are created. Template library is append-only — nothing is ever overwritten.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Frontend</div>
+      <div class="features">
+        <div class="feat">
+          <div class="feat-icon fi-gray"><i class="ti ti-layout" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Streamlit UI</div>
+            <div class="feat-desc">Prompt input, optional profile photo upload, optional Excel upload. Single generate returns one PNG with preview + download. Bulk returns ZIP download. Progress bar for large batches.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-gray"><i class="ti ti-map-pin" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Visual zone mapper</div>
+            <div class="feat-desc">Developer tool — upload PNG, drag to draw placeholder boxes, configure colour/font/style per field, export complete overlay.json. No manual coordinate calculation needed.</div>
+            <span class="feat-tag tag-p1">Phase 1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 2 -->
+  <div class="phase-block">
+    <div class="phase-header" style="background:var(--surface-1)">
+      <span class="phase-badge p2-badge">Phase 2</span>
+      <span class="phase-title">Marketing agent and user template creation</span>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Brand governance (developer-locked)</div>
+      <div class="features">
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-shield-lock" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Brand config — set once, never user-changeable</div>
+            <div class="feat-desc">Developer defines brand logo position, hex colour theme, and mascot inclusion rules. Every template created by the agent or user must follow these. Users cannot override. Stored in brand_config/ folder.</div>
+            <span class="feat-tag tag-p2">Phase 2</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-settings" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Admin panel</div>
+            <div class="feat-desc">Developer-only UI to update logo, colour theme, and mascot rules. Changes propagate to all future agent-created templates without touching existing ones.</div>
+            <span class="feat-tag tag-p2">Phase 2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Creation agent flow</div>
+      <div class="features">
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-search" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Template existence check</div>
+            <div class="feat-desc">Before triggering the agent, RAG search runs first. If a match exists, it goes to template selection. Only if no match is found does the creation agent activate.</div>
+            <span class="feat-tag tag-p2">Phase 2</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-message-chatbot" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Conversational agent UI</div>
+            <div class="feat-desc">Multi-turn conversation where agent proposes layout using brand config + user prompt. User reviews, requests changes, places placeholders via zone mapper, and confirms. Nothing saved until explicit approval.</div>
+            <span class="feat-tag tag-p2">Phase 2</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-user-check" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Human approval loop</div>
+            <div class="feat-desc">Agent shows final template with all placeholders before saving. User can request revisions — move a field, change font, adjust layout. Agent revises and shows again. Saved only on explicit confirm.</div>
+            <span class="feat-tag tag-p2">Phase 2</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-tags" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">User-defined description and tags</div>
+            <div class="feat-desc">After approval, user writes the RAG description and tags for their template. This is what ChromaDB uses for all future searches. Immediately indexed — available to all users from that moment.</div>
+            <span class="feat-tag tag-p2">Phase 2</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-upload" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">User-uploaded template + zone mapper</div>
+            <div class="feat-desc">User uploads their own PNG. Zone mapper tool lets them drag to draw placeholder boxes, pick text colour, font, weight, style, and letter spacing per field. Exports overlay.json automatically.</div>
+            <span class="feat-tag tag-new">New feature</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Multi-template selection and bulk</div>
+      <div class="features">
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-layout-grid" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Template gallery — multiple matches shown</div>
+            <div class="feat-desc">When ChromaDB finds multiple close matches, user sees a gallery and picks. Not forced to use the top result. Can select one for single generation or multiple for bulk.</div>
+            <span class="feat-tag tag-p2">Phase 2</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-copy" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">Multi-template bulk generation</div>
+            <div class="feat-desc">User selects multiple templates + uploads Excel. System generates one poster per template per person. 50 names × 2 templates = 100 output files. All zipped together.</div>
+            <span class="feat-tag tag-p2">Phase 2</span>
+          </div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-purple"><i class="ti ti-sparkles" aria-hidden="true"></i></div>
+          <div class="feat-body">
+            <div class="feat-name">LLM fills missing Excel fields</div>
+            <div class="feat-desc">In bulk mode, columns present in Excel are copied directly. Fields missing from Excel are generated by LLM from context. No row fails due to incomplete data.</div>
+            <span class="feat-tag tag-p2">Phase 2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHARED -->
+  <div class="phase-block">
+    <div class="phase-header" style="background:var(--surface-1)">
+      <span class="phase-badge shared-badge">Shared</span>
+      <span class="phase-title">Components used across both phases</span>
+    </div>
+    <div class="section">
+      <div class="features two-col">
+        <div class="feat">
+          <div class="feat-icon fi-gray"><i class="ti ti-server" aria-hidden="true"></i></div>
+          <div class="feat-body"><div class="feat-name">FastAPI gateway</div><div class="feat-desc">All routes in one place. Phase 2 adds /agent-create and /approve on top of Phase 1 routes.</div><span class="feat-tag tag-both">Both</span></div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-gray"><i class="ti ti-vector" aria-hidden="true"></i></div>
+          <div class="feat-body"><div class="feat-name">sentence-transformers</div><div class="feat-desc">Local embedding model. Free, no API calls, handles all vector conversion for RAG in both phases.</div><span class="feat-tag tag-both">Both</span></div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-gray"><i class="ti ti-database" aria-hidden="true"></i></div>
+          <div class="feat-body"><div class="feat-name">ChromaDB vector store</div><div class="feat-desc">Template index grows with every Phase 2 approval. Same search logic used in both phases.</div><span class="feat-tag tag-both">Both</span></div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-gray"><i class="ti ti-photo-edit" aria-hidden="true"></i></div>
+          <div class="feat-body"><div class="feat-name">Pillow renderer</div><div class="feat-desc">Handles text and image fields, auto-shrink, circle crop. Shared by single, bulk, and agent-created templates.</div><span class="feat-tag tag-both">Both</span></div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-gray"><i class="ti ti-letter-case" aria-hidden="true"></i></div>
+          <div class="feat-body"><div class="feat-name">Rich style schema in overlay.json</div><div class="feat-desc">font_family, font_size, font_size_min, font_weight, font_style, color, align, letter_spacing — applies to all templates.</div><span class="feat-tag tag-both">Both</span></div>
+        </div>
+        <div class="feat">
+          <div class="feat-icon fi-gray"><i class="ti ti-box" aria-hidden="true"></i></div>
+          <div class="feat-body"><div class="feat-name">Placeholder box (not point)</div><div class="feat-desc">All fields use x, y, width, height bounding box instead of a single coordinate. Enables auto-shrink and correct alignment.</div><span class="feat-tag tag-both">Both</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>

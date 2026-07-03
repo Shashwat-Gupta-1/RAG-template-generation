@@ -1,12 +1,11 @@
 {
-  "template_id": "teej",
-  "description": "teej greeting poster - personalized with employee names ",
+  "template_id": "teej002",
+  "description":"Kajari Teej festival personalized greeting poster for MS Fincap staff with employee name overlay colorful traditional Rajasthani design third monsoon teej celebration",
   "type": "poster",
   "tags": [
-    "Teej",
-    "Rajasthan's festival"
+   "teej", "kajari teej", "festival", "greeting", "rajasthan", "traditional", "monsoon"
   ],
-  "base_image": "templates/teej/template.png",
+  "base_image": "templates/teej/teej002/template.png",
   "canvas": {
     "width": 1587,
     "height": 2245

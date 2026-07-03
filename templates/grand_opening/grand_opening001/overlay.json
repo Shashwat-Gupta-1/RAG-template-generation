@@ -1,13 +1,10 @@
 {
-  "template_id": "openingnewbranch01",
-  "description": "New branch opening poster - personalized with employee names",
+  "template_id": "grand_opening",
+  "description":  "New branch office opening announcement poster for MS Fincap with personalized employee name overlay celebrating inauguration of new location",
   "type": "poster",
-  "tags": [
-    "gangaur",
-    "festival",
-    "greeting"
-  ],
-  "base_image": "templates/openingnewbranch01/template.png",
+  "tags": 
+   ["grand opening", "branch opening", "inauguration", "new office", "announcement"],
+  "base_image": "templates/grand_opening/grand_opening001/template.png",
   "canvas": {
     "width": 1587,
     "height": 2245

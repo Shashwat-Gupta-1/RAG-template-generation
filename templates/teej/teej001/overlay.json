@@ -1,12 +1,11 @@
 {
-  "template_id": "teej",
-  "description": "teej greeting poster - personalized with employee names ",
+  "template_id": "teej001",
+  "description": "Hariyali Teej festival greeting poster for MS Fincap employees with personalized name overlay celebrating green themed Rajasthani women festival monsoon season ",
   "type": "poster",
   "tags": [
-    "Teej",
-    "Rajasthan's festival"
+    "teej", "hariyali teej", "festival", "greeting", "rajasthan", "monsoon", "women"
   ],
-  "base_image": "templates/teej/template.png",
+  "base_image": "templates/teej/teej001/template.png",
   "canvas": {
     "width": 848,
     "height": 1264

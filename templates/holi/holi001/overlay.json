@@ -1,0 +1,46 @@
+{
+  "template_id": "holi01",
+  "description": "Modern Holi festival of colours greeting poster for MS Fincap employees and customers with personalized recipient name overlay celebrating spring",
+  "type": "poster",
+  "tags": ["holi", "festival", "colours", "spring", "greeting", "celebration", "gulal", "rang"],
+  "base_image": "templates/holi/holi001/template.png",
+  "canvas": { "width": 1080, "height": 1080 },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Full name of recipient exactly as given, no titles added",
+      "llm_can_invent": false,
+      "box": { "x": 200, "y": 800, "width": 680, "height": 100 },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "greeting_line",
+      "type": "text",
+      "placeholder": "{{greeting_line}}",
+      "instruction": "A warm short Holi greeting max 8 words",
+      "llm_can_invent": true,
+      "box": { "x": 200, "y": 700, "width": 680, "height": 80 },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 32,
+        "font_size_min": 16,
+        "font_weight": "normal",
+        "color": "#FFE066",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

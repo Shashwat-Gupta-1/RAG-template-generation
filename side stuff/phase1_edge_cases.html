@@ -1,0 +1,147 @@
+
+<style>
+.ec-wrap { padding: 1rem 0; }
+.ec-section { margin-bottom: 1.5rem; }
+.ec-section-title { font-size: 13px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.ec-section-title i { font-size: 15px; }
+.ec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 8px; }
+.ec-card { background: var(--surface-1); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+.ec-card:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.ec-card.open { border-color: var(--border-accent); background: var(--bg-accent); }
+.ec-card-header { display: flex; align-items: flex-start; gap: 10px; }
+.ec-badge { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 99px; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+.badge-danger { background: var(--bg-danger); color: var(--text-danger); }
+.badge-warning { background: var(--bg-warning); color: var(--text-warning); }
+.badge-success { background: var(--bg-success); color: var(--text-success); }
+.ec-name { font-size: 14px; font-weight: 500; color: var(--text-primary); line-height: 1.35; }
+.ec-body { margin-top: 10px; padding-top: 10px; border-top: 0.5px solid var(--border); display: none; }
+.ec-card.open .ec-body { display: block; }
+.ec-label { font-size: 11px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; margin-top: 8px; }
+.ec-label:first-child { margin-top: 0; }
+.ec-value { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+.ec-fix { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
+</style>
+<div class="ec-wrap">
+<h2 class="sr-only">Phase 1 edge cases grouped by pipeline stage — click any card to expand the fix</h2>
+
+<div id="all-sections"></div>
+</div>
+<script>
+const sections = [
+  {
+    icon: "ti-file-upload",
+    title: "1. Input / prompt stage",
+    cases: [
+      { name: "Empty prompt", sev: "danger", what: "User submits a blank or whitespace-only prompt.", fix: "Validate before hitting any API. Return a clear message: 'Please describe what you need' — don't pass an empty string to ChromaDB or the LLM." },
+      { name: "Vague prompt — no extractable fields", sev: "warning", what: "User writes 'make me a poster.' No name, no occasion, no specifics.", fix: "LLM confidence check returns null for identity fields. Streamlit shows a fallback form asking only for the missing required fields. Don't generate a poster with invented names." },
+      { name: "Prompt in a different language", sev: "warning", what: "User writes in Hindi, Gujarati, or another language. RAG search is in English.", fix: "Embed the prompt as-is — sentence-transformers handles multilingual. Instruct Claude to respond in the same language as the prompt. Test Devanagari rendering with NotoSans font." },
+      { name: "Prompt is extremely long", sev: "warning", what: "User pastes a paragraph of context. Claude API has token limits.", fix: "Truncate input to 500 chars before sending to the field-filler prompt. The RAG search only needs the first sentence anyway. Log if truncation happens." },
+      { name: "No matching template in ChromaDB", sev: "danger", what: "RAG similarity score is below threshold — no good match exists.", fix: "Return a clear message: 'No matching template found. Would you like to create one?' — this is the Phase 2 trigger. Don't return a wrong template silently." },
+    ]
+  },
+  {
+    icon: "ti-database",
+    title: "2. RAG search stage",
+    cases: [
+      { name: "ChromaDB returns multiple close matches", sev: "warning", what: "Two templates both score above the threshold (e.g. 'Diwali poster' vs 'Diwali banner').", fix: "Show the user a gallery of the top 2–3 options and let them pick. For bulk jobs, ask before running 50 renders on the wrong template." },
+      { name: "ChromaDB is empty", sev: "danger", what: "Indexing script was never run, or the DB file is missing.", fix: "Health check on startup. If chroma_db/ is empty, show a setup warning to the developer. Never let a user-facing request hit an empty DB silently." },
+      { name: "Embedding model not loaded", sev: "danger", what: "sentence-transformers failed to download or is corrupted.", fix: "Wrap the model load in a startup check. If it fails, FastAPI should refuse to start with a clear error, not crash on the first request." },
+      { name: "Template JSON is malformed", sev: "danger", what: "A stored template's overlay.json has invalid JSON or missing required keys.", fix: "Validate every JSON on indexing, not at query time. Reject malformed templates at the indexer stage with a specific error message." },
+    ]
+  },
+  {
+    icon: "ti-table",
+    title: "3. Excel / bulk stage",
+    cases: [
+      { name: "Missing emp_id column", sev: "danger", what: "HR uploads Excel without the mandatory emp_id column.", fix: "Validate before any processing. Return: 'Column emp_id is required. Please add it and re-upload.' Include which columns were found." },
+      { name: "Blank emp_id cells", sev: "danger", what: "Some rows have empty emp_id values.", fix: "Run a completeness check upfront. Return the row numbers with missing emp_ids. Reject the whole batch — partial batches create untraceable output files." },
+      { name: "Duplicate emp_ids", sev: "danger", what: "Two employees share the same ID — output files would silently overwrite each other.", fix: "Check for duplicates before processing. Return the conflicting row numbers. Reject the batch." },
+      { name: "Excel has no data rows", sev: "warning", what: "File is uploaded but has only headers, no data.", fix: "Check row count after reading with pandas. Return: 'The uploaded file has no data rows.'" },
+      { name: "Column names are fuzzy", sev: "warning", what: "'employee_name' in Excel vs 'name' in overlay.json. No exact match.", fix: "Run the LLM column-mapping call once for the entire batch. Cache the mapping. Use it for all rows without re-calling the LLM." },
+      { name: "Excel column maps to nothing", sev: "warning", what: "An overlay field has no matching Excel column and LLM mapping returns null.", fix: "LLM generates the value per-row for that field. Log which fields were generated vs copied for the audit CSV." },
+      { name: "Non-Excel file uploaded", sev: "warning", what: "User uploads a .csv or .ods instead of .xlsx.", fix: "pandas can read .csv. Add explicit support. For unsupported formats, return a clear error listing accepted formats." },
+      { name: "Very large Excel (1000+ rows)", sev: "warning", what: "Processing 1000 renders synchronously will time out FastAPI.", fix: "Move bulk jobs to a background task (FastAPI BackgroundTasks or Celery). Return a job ID immediately. Let the user poll for completion or get a download link via email/webhook." },
+    ]
+  },
+  {
+    icon: "ti-robot",
+    title: "4. LLM field-fill stage",
+    cases: [
+      { name: "Claude API returns invalid JSON", sev: "danger", what: "Claude includes a preamble, markdown fences, or partial JSON despite the system prompt.", fix: "Wrap JSON parse in try/catch. Strip ```json fences. If parse still fails, retry once with a stricter prompt. After 2 failures, flag the row in the audit log and skip it." },
+      { name: "Claude invents a field ID that doesn't exist", sev: "warning", what: "Response has keys not in the overlay.json field list.", fix: "Whitelist: only accept keys that match a valid overlay field ID. Silently drop any extra keys. Never let phantom fields reach the renderer." },
+      { name: "Claude returns null for a required field", sev: "warning", what: "A non-generatable field (name) couldn't be extracted from the prompt.", fix: "For single generation: show the fallback form in Streamlit asking for the missing value. For bulk: mark the row as 'needs_manual_input' in the audit CSV, skip rendering it." },
+      { name: "Claude API rate limit hit", sev: "danger", what: "Burst of bulk requests exceeds API limits.", fix: "Add retry with exponential backoff (1s, 2s, 4s). Log rate limit hits. For bulk jobs, add a configurable delay between rows (e.g. 100ms)." },
+      { name: "Claude API is down", sev: "danger", what: "API returns 5xx or times out.", fix: "Catch the exception. Return a user-facing message: 'AI service is temporarily unavailable. Please try again in a moment.' Log the error with timestamp." },
+      { name: "Field value is too long for the bounding box", sev: "warning", what: "Claude generates a greeting longer than the overlay.json box can fit.", fix: "Renderer uses font_size_min + auto-shrink. If text still doesn't fit at min size, truncate with ellipsis. Log which fields were truncated." },
+    ]
+  },
+  {
+    icon: "ti-photo",
+    title: "5. Renderer (Pillow) stage",
+    cases: [
+      { name: "Template PNG file not found", sev: "danger", what: "The path in overlay.json points to a file that was moved, renamed, or deleted.", fix: "Check file existence before opening. Return a clear error: 'Template image not found at [path].' Alert the developer — this means the templates/ folder was modified outside the indexer." },
+      { name: "Font file not found", sev: "danger", what: "NotoSans.ttf is missing from the fonts/ directory.", fix: "Check font file on startup. Fall back to Pillow's default font with a warning logged. The default font won't support Devanagari — make this a hard error if Hindi support is required." },
+      { name: "User-uploaded photo is corrupt", sev: "danger", what: "Image field requires a photo, but the uploaded file is broken or empty.", fix: "Validate the image on upload with PIL.Image.verify(). Return an error before the render job starts, not mid-batch." },
+      { name: "User-uploaded photo has wrong format", sev: "warning", what: "User uploads a HEIC or WebP file that Pillow doesn't support by default.", fix: "List supported formats in the UI. Convert HEIC before processing (requires pillow-heif). Accept common formats: JPG, PNG, WebP (with Pillow 9+)." },
+      { name: "Output directory doesn't exist", sev: "danger", what: "output/ folder was deleted between runs.", fix: "Create output/ with os.makedirs(exist_ok=True) at the start of every render job. Never assume it exists." },
+      { name: "Disk is full", sev: "danger", what: "A large bulk job fills the disk before completing.", fix: "Catch OSError on file write. Stop the job, log the error, return partial results with a clear message. Clean up output/ after ZIP is sent." },
+    ]
+  },
+  {
+    icon: "ti-download",
+    title: "6. Output / delivery stage",
+    cases: [
+      { name: "ZIP creation fails mid-batch", sev: "danger", what: "Some renders succeeded but ZIP creation throws an error.", fix: "Build ZIP incrementally, adding each file as it's rendered. If ZIP fails, still deliver the individual files already in output/." },
+      { name: "Audit CSV has encoding issues", sev: "warning", what: "Names with Hindi or special characters break CSV if written in ASCII.", fix: "Always write CSV with utf-8-sig encoding (the BOM makes Excel open it correctly). Use pandas to_csv(encoding='utf-8-sig')." },
+      { name: "Single render returns no file", sev: "danger", what: "Renderer completes without error but output file is empty or missing.", fix: "Verify output file size > 0 before returning it. If the file is empty, this is a silent renderer bug — log it and return a 500 with details." },
+      { name: "User downloads partial batch", sev: "warning", what: "For large batches, user closes the browser before download completes.", fix: "Store the ZIP in output/ for at least 1 hour. Return a persistent download URL, not a streaming response the user must stay connected for." },
+    ]
+  }
+];
+
+const container = document.getElementById('all-sections');
+
+sections.forEach(section => {
+  const sec = document.createElement('div');
+  sec.className = 'ec-section';
+  
+  const title = document.createElement('div');
+  title.className = 'ec-section-title';
+  title.innerHTML = `<i class="ti ${section.icon}" aria-hidden="true"></i>${section.title}`;
+  sec.appendChild(title);
+  
+  const grid = document.createElement('div');
+  grid.className = 'ec-grid';
+  
+  section.cases.forEach(c => {
+    const card = document.createElement('div');
+    card.className = 'ec-card';
+    
+    const badgeClass = c.sev === 'danger' ? 'badge-danger' : c.sev === 'warning' ? 'badge-warning' : 'badge-success';
+    const badgeText = c.sev === 'danger' ? 'Critical' : c.sev === 'warning' ? 'Handle' : 'Note';
+    
+    card.innerHTML = `
+      <div class="ec-card-header">
+        <span class="ec-badge ${badgeClass}">${badgeText}</span>
+        <span class="ec-name">${c.name}</span>
+      </div>
+      <div class="ec-body">
+        <div class="ec-label">What happens</div>
+        <div class="ec-value">${c.what}</div>
+        <div class="ec-label">Fix</div>
+        <div class="ec-fix">${c.fix}</div>
+      </div>
+    `;
+    
+    card.addEventListener('click', () => {
+      const wasOpen = card.classList.contains('open');
+      card.classList.toggle('open', !wasOpen);
+    });
+    
+    grid.appendChild(card);
+  });
+  
+  sec.appendChild(grid);
+  container.appendChild(sec);
+});
+</script>

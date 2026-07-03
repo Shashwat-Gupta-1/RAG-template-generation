@@ -1,14 +1,11 @@
 {
   "template_id": "hiring",
-  "description": "hiring poster for colleges, - personalized with college names",
+  "description":"Job hiring recruitment poster for MS Fincap targeting college students and freshers with personalized college name and candidate name for campus placement drive",
   "type": "poster",
   "tags": [
-    "hiring",
-    "colleges",
-    "students",
-    "jobs"
+   "hiring", "recruitment", "job", "campus", "college", "fresher", "placement"
   ],
-  "base_image": "templates/hiring/template.png",
+  "base_image": "templates/hiring/hiring001/template.png",
   "canvas": {
     "width": 848,
     "height": 1264

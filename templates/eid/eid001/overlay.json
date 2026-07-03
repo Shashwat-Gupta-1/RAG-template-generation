@@ -1,12 +1,11 @@
 {
-  "template_id": "msfincap_eid",
-  "description": "eid festival greeting poster ",
+  "template_id": "eid001",
+  "description": "Eid Mubarak festival greeting poster for MS Fincap employees and customers with personalized name overlay wishing Eid ul Fitr or Eid ul Adha ",
   "type": "poster",
   "tags": [
-    "eid",
-    "festival"
+    "eid", "eid mubarak", "festival", "greeting", "muslim", "celebration"
   ],
-  "base_image": "templates/eid001/msfc eid.png",
+  "base_image": "templates/eid/eid001/template.png",
   "canvas": {
     "width": 1696,
     "height": 2528
