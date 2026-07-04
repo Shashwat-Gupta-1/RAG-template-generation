@@ -1,3 +1,5 @@
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 RESERVED_FIELDS = {"emp_id"}
 
 def get_editable_text_fields(template: dict) -> list[dict]:

@@ -1,7 +1,10 @@
 import openai
 import json
 import time
-from backend.config import settings
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from config import settings
 
 client = openai.OpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -21,6 +24,7 @@ Keep values short — they must fit in small design zones.
 For name fields: use the name exactly as given. No titles.
 Respond in the same language as the user prompt.
 Never include {{placeholder}} syntax in your response."""
+
 
 def fill_overlay_fields(prompt: str, editable_fields: list[dict]) -> dict:
     user_msg = f"""User request: "{prompt}"
@@ -76,7 +80,9 @@ Return only valid JSON: {{"field_id": "value or null"}}"""
 
         except Exception as e:
             raise RuntimeError(f"LLM call failed: {e}")
-            def extract_folder_and_tags(prompt: str, valid_folders: list[dict]) -> dict | None:
+
+
+def extract_folder_and_tags(prompt: str, valid_folders: list[dict]) -> dict | None:
     folder_list = "\n".join([
         f"- {f['folder']}: [{', '.join(f['tags'])}]"
         for f in valid_folders
@@ -124,24 +130,22 @@ Return format:
 
             result = json.loads(raw)
 
-            # Validate folder name exists in ChromaDB
+            # Validate folder name exists
             valid_names = {f["folder"] for f in valid_folders}
             if result.get("folder") not in valid_names:
                 result["folder"] = None
                 result["relevant_tags"] = []
+                return result
 
-            # Validate tags are from that folder's actual tag list
-            if result.get("folder"):
-                folder_tags = next(
-                    f["tags"] for f in valid_folders
-                    if f["folder"] == result["folder"]
-                )
-                valid_tags = set(folder_tags)
-                result["relevant_tags"] = [
-                    t for t in result.get("relevant_tags", [])
-                    if t in valid_tags
-                ]
-
+            # Validate tags are from that folder only
+            folder_tags = next(
+                f["tags"] for f in valid_folders
+                if f["folder"] == result["folder"]
+            )
+            result["relevant_tags"] = [
+                t for t in result.get("relevant_tags", [])
+                if t in set(folder_tags)
+            ]
             return result
 
         except json.JSONDecodeError:

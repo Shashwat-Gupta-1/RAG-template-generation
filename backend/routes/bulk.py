@@ -1,11 +1,13 @@
 from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
-from backend.processing.rag import search_folder, load_template, load_all_templates_in_folder
-from backend.processing.field_split import validate_excel_structure, build_field_values_bulk_row
-from backend.processing.renderer import render_poster
-from backend.validation.excel_validator import validate_excel_file
-from backend.jobs.job_tracker import init_db, create_job, update_job, get_job
-from backend.config import settings
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from processing.rag import search_folder, load_template, load_all_templates_in_folder
+from processing.field_split import validate_excel_structure, build_field_values_bulk_row
+from processing.renderer import render_poster
+from validation.excel_validator import validate_excel_file
+from jobs.job_tracker import init_db, create_job, update_job, get_job
+from config import settings
 import pandas as pd, io, uuid, zipfile, csv, time, os, json
 
 router = APIRouter()

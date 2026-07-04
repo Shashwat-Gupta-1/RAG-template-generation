@@ -1,6 +1,8 @@
 from PIL import Image, ImageDraw, ImageFont
 import os
-from backend.config import settings
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from config import settings
 
 FONT_MAP = {
     ("poppins",  "normal"):   "Poppins-Regular.ttf",

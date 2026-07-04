@@ -1,9 +1,11 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
-from backend.processing.rag import search_folder, load_template, load_all_templates_in_folder
-from backend.processing.field_split import build_field_values_single
-from backend.processing.renderer import render_poster
-from backend.config import settings
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from processing.rag import search_folder, load_template, load_all_templates_in_folder
+from processing.field_split import build_field_values_single
+from processing.renderer import render_poster
+from config import settings
 import os, uuid
 
 router = APIRouter()
