@@ -188,7 +188,10 @@ def load_template(folder_name: str, template_id: str) -> dict | None:
     if not os.path.exists(overlay_path):
         return None
     with open(overlay_path, encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    if data:
+        data["template_id"] = template_id
+    return data
 
 def load_all_templates_in_folder(folder_name: str) -> list[dict]:
     main_path = os.path.join(settings.templates_dir, folder_name, "main.json")
@@ -215,7 +218,10 @@ def retrieve_template_overlay(prompt: str) -> dict | None:
     if not templates:
         return None
 
-    return load_template(best["folder"], templates[0])
+    template = load_template(best["folder"], templates[0])
+    if template:
+        template["folder"] = best["folder"]
+    return template
 
 def save_template_to_index(template: dict, folder_name: str) -> None:
     folder_path = os.path.join(settings.templates_dir, folder_name)

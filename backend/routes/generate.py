@@ -5,7 +5,7 @@ import json
 import os
 import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse
 
 import sys
@@ -46,6 +46,7 @@ def _apply_style_overrides(template: dict, overrides: dict) -> dict:
 
 @router.post("/generate")
 async def generate(
+    request: Request,
     prompt: str = Form(...),
     template_id: str = Form(None),
     folder: str = Form(None),
@@ -56,6 +57,14 @@ async def generate(
     if not prompt:
         raise HTTPException(400, "Prompt cannot be empty.")
     prompt = prompt[:settings.max_prompt_length]
+
+    # ── Parse extra dynamic inputs from form data ──────────────────────────
+    form_data = await request.form()
+    extra_inputs = {}
+    for key, value in form_data.items():
+        if key not in {"prompt", "template_id", "folder", "image", "style_overrides"}:
+            if isinstance(value, str):
+                extra_inputs[key] = value.strip()
 
     # ── Parse style overrides ──────────────────────────────────────────────
     parsed_overrides: dict = {}
@@ -134,6 +143,15 @@ async def generate(
         # ── Build field values ─────────────────────────────────────────────
         overlay_values, null_fields = build_field_values_single(template, prompt)
 
+        # Merge user inputs from request form parameters
+        for key, val in extra_inputs.items():
+            if val is not None and val != "":
+                overlay_values[key] = val
+
+        # Recalculate missing required fields
+        from processing.field_split import has_missing_required
+        null_fields = has_missing_required(template, overlay_values)
+
         if null_fields:
             return {
                 "status": "needs_input",
@@ -152,6 +170,8 @@ async def generate(
     except FileNotFoundError as e:
         raise HTTPException(500, str(e))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(500, f"Error: {e}")
     finally:
         if uploaded_image_path and os.path.exists(uploaded_image_path):

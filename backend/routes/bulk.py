@@ -34,6 +34,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
+import base64
 
 from backend.config import settings
 from backend.jobs.job_tracker import (
@@ -57,6 +58,29 @@ router = APIRouter()
 
 
 # ── Background job ────────────────────────────────────────────────────────────
+
+def _apply_style_overrides(template: dict, overrides: dict) -> dict:
+    """
+    Return a deep-copied template with user style overrides patched into
+    every text layer's style block.
+    """
+    import copy
+    if not overrides:
+        return template
+
+    patched = copy.deepcopy(template)
+    allowed_keys = {"font_family", "font_size", "font_weight", "color"}
+
+    for layer in patched.get("overlay_layers") or []:
+        if str(layer.get("type", "")).lower() != "text":
+            continue
+        style = layer.setdefault("style", {})
+        for key in allowed_keys:
+            val = overrides.get(key)
+            if val is not None and val != "":
+                style[key] = val
+
+    return patched
 
 def _run_bulk_job(
     job_id: str,
@@ -163,6 +187,7 @@ async def bulk_generate(
     prompt: str = Form(...),
     excel_file: UploadFile = File(...),
     photo: Optional[UploadFile] = File(None),
+    style_overrides: str = Form(None),
 ):
     """
     Start a bulk generation job.
@@ -185,6 +210,14 @@ async def bulk_generate(
                 "suggest_create": True,
             }
         )
+
+    # Apply style overrides
+    if style_overrides:
+        try:
+            parsed_overrides = json.loads(style_overrides)
+            overlay = _apply_style_overrides(overlay, parsed_overrides)
+        except (json.JSONDecodeError, TypeError):
+            pass
 
     # Step 2 — Read and validate Excel
     file_bytes = await excel_file.read()
@@ -221,6 +254,86 @@ async def bulk_generate(
         "total_rows": len(df),
         "message":    f"Job started. {len(df)} rows queued."
     })
+
+
+@router.post("/bulk/preview")
+async def bulk_preview(
+    prompt: str = Form(...),
+    excel_file: UploadFile = File(...),
+    photo: Optional[UploadFile] = File(None),
+    style_overrides: str = Form(None),
+):
+    """
+    Generate a preview poster for the first row of an Excel sheet.
+    """
+    overlay = retrieve_template_overlay(prompt)
+    if not overlay:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "error": "No matching template found for this prompt.",
+                "suggest_create": True,
+            }
+        )
+
+    # Apply style overrides
+    if style_overrides:
+        try:
+            parsed_overrides = json.loads(style_overrides)
+            overlay = _apply_style_overrides(overlay, parsed_overrides)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    file_bytes = await excel_file.read()
+    df, errors = validate_excel(file_bytes, overlay)
+    if errors:
+        return JSONResponse(
+            status_code=422,
+            content={"errors": errors}
+        )
+
+    if df.empty:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Excel file is empty."}
+        )
+
+    column_map = build_column_map(overlay, list(df.columns))
+    photo_bytes = await photo.read() if photo else None
+
+    # Get first row data
+    first_row = df.iloc[0].to_dict()
+    values = split_row(overlay, first_row, column_map, prompt=prompt)
+
+    # Fill inventable fields via LLM
+    context = json.dumps(
+        {k: v for k, v in first_row.items() if k != "emp_id"},
+        ensure_ascii=False
+    )
+    values = fill_invent_fields_only(overlay, values, context=context)
+
+    # Replace image zones
+    for fid, val in values.items():
+        if val == NEEDS_IMAGE:
+            values[fid] = photo_bytes
+
+    try:
+        image = render_overlay(overlay, values)
+        img_bytes = io.BytesIO()
+        image.convert("RGB").save(img_bytes, format="PNG")
+        b64_str = base64.b64encode(img_bytes.getvalue()).decode("utf-8")
+        
+        return JSONResponse(content={
+            "preview_image": b64_str,
+            "total_rows": len(df),
+            "template_id": overlay.get("template_id"),
+            "folder": overlay.get("folder"),
+        })
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to render preview: {exc}"}
+        )
 
 
 @router.get("/job-status/{job_id}")
