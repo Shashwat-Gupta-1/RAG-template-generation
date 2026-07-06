@@ -1,13 +1,13 @@
 {
-  "template_id": "openingnewbranch01",
-  "description": "New branch opening poster - personalized with employee names",
+  "template_id": "grand_opening",
+  "description": "new branch opening announcement poster, grand opening celebration, launch event personalized with branch name and location",
   "type": "poster",
   "tags": [
-    "gangaur",
-    "festival",
+    "new branch",
+    "opening",
     "greeting"
   ],
-  "base_image": "templates/openingnewbranch01/template.png",
+  "base_image": "templates/grand_opening/grand_opening001/template.png",
   "canvas": {
     "width": 1587,
     "height": 2245

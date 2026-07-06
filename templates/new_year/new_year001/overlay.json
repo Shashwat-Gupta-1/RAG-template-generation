@@ -1,12 +1,13 @@
 {
   "template_id": "new_year",
-  "description": "new year greeting poster - personalized with employee names ",
+  "description": "new year greeting poster, happy new year wishes, year celebration personalized with employee names",
   "type": "poster",
   "tags": [
     "new year",
-    "resolutions"
+    "resolutions",
+    "new beginnings"
   ],
-  "base_image": "templates/new_year/template.png",
+  "base_image": "templates/new_year/new_year001/template.png",
   "canvas": {
     "width": 1587,
     "height": 2245

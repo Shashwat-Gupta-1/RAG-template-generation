@@ -1,0 +1,13 @@
+{
+  "folder": "grand_opening",
+  "display_name": "Grand Opening",
+  "embed_text": "grand_opening grand_opening greeting new branch opening",
+  "tags": [
+    "greeting",
+    "new branch",
+    "opening"
+  ],
+  "templates": [
+    "grand_opening001"
+  ]
+}

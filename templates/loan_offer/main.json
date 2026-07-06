@@ -1,0 +1,12 @@
+{
+  "folder": "loan_offer",
+  "display_name": "Loan Offer",
+  "embed_text": "loan_offer loan_offer discounts loan offers",
+  "tags": [
+    "discounts",
+    "loan offers"
+  ],
+  "templates": [
+    "loan_offer001"
+  ]
+}

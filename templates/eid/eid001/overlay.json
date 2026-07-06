@@ -1,12 +1,18 @@
 {
-  "template_id": "msfincap_dussehra",
-  "description": "dussehra festival greeting poster containing name overlay",
+  "template_id": "eid001",
+  "description": "Eid Mubarak greeting poster - eid ul fitr ramadan fasting end moon sighting mosque islamic celebration personalized with names",
   "type": "poster",
   "tags": [
-    "dussehra",
-    "festival"
+    "eid",
+    "eid mubarak",
+    "eid ul fitr",
+    "ramadan",
+    "fasting",
+    "moon sighting",
+    "mosque",
+    "islamic"
   ],
-  "base_image": "templates/dussehra001/msfc dussehra.png",
+  "base_image": "templates/eid/eid001/template.png",
   "canvas": {
     "width": 1696,
     "height": 2528
@@ -16,7 +22,7 @@
       "id": "name",
       "type": "text",
       "placeholder": "{{name}}",
-      "instruction": "name of the person",
+      "instruction": "name of the person ",
       "llm_can_invent": false,
       "box": {
         "x": 516,
@@ -29,9 +35,11 @@
         "font_size": 48,
         "font_size_min": 20,
         "font_weight": "bold",
+        "font_style": "normal",
         "color": "#D21414",
         "align": "center",
-        "vertical_align": "middle"
+        "vertical_align": "middle",
+        "letter_spacing": 0
       },
       "editable": true
     }
