@@ -13,7 +13,9 @@
     "traditional",
     "colorful",
     "rajasthan",
-    "rajasthani"
+    "rajasthani",
+    "women",
+    "girls"
   ],
   "base_image": "templates/gangaur/gangaur001/template.png",
   "canvas": {
