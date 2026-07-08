@@ -147,8 +147,13 @@ def fill_values(
     system_prompt = (
         "You are a poster content assistant for MS Fincap, a financial services NBFC in Rajasthan. "
         "Return ONLY a flat JSON object. Keys are field IDs. Values are strings. "
-        "No preamble, no markdown, no extra keys. "
-        "If a value cannot be extracted from the prompt, return null for that key."
+        "No preamble, no markdown, no extra keys.\n"
+        "Rules for fields:\n"
+        "1. For fields labeled 'EXTRACT from prompt': If the value is not explicitly mentioned "
+        "or cannot be clearly inferred from the user prompt, you MUST return null for that key. "
+        "Never guess, invent, or assume values for required fields like names or specific headings.\n"
+        "2. For fields labeled 'GENERATE': You MUST creatively generate/invent a catchy, professional, "
+        "and appropriate value according to the instruction, even if the user prompt is generic."
     )
 
     user_message = (

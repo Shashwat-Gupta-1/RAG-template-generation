@@ -57,6 +57,7 @@ def read_excel(file_bytes: bytes) -> Tuple[Optional[pd.DataFrame], List[str]]:
 def validate_structure(
     df: pd.DataFrame,
     overlay: Dict[str, Any],
+    custom_column_map: Dict[str, str] = None,
 ) -> List[str]:
     """
     Stage 1 — Structural checks.
@@ -96,8 +97,13 @@ def validate_structure(
             continue    # LLM will generate these, no Excel column needed
 
         # This field is required from Excel
-        if field_id.lower() not in excel_cols_lower:
-            missing_cols.append(field_id)
+        if custom_column_map:
+            mapped_col = custom_column_map.get(field_id)
+            if not mapped_col or mapped_col not in df.columns:
+                missing_cols.append(field_id)
+        else:
+            if field_id.lower() not in excel_cols_lower:
+                missing_cols.append(field_id)
 
     if missing_cols:
         errors.append(
@@ -153,6 +159,7 @@ def validate_rows(df: pd.DataFrame) -> List[str]:
 def validate_excel(
     file_bytes: bytes,
     overlay: Dict[str, Any],
+    custom_column_map: Dict[str, str] = None,
 ) -> Tuple[Optional[pd.DataFrame], List[str]]:
     """
     Full validation pipeline.
@@ -161,11 +168,6 @@ def validate_excel(
     Returns (dataframe, errors).
     If errors is non-empty → reject the batch, return errors to user.
     If errors is empty → dataframe is safe to process row by row.
-
-    Example usage in route:
-        df, errors = validate_excel(file_bytes, overlay)
-        if errors:
-            return JSONResponse(status_code=422, content={"errors": errors})
     """
     # Stage 0 — parse file
     df, parse_errors = read_excel(file_bytes)
@@ -173,7 +175,7 @@ def validate_excel(
         return None, parse_errors
 
     # Stage 1 — structural checks
-    struct_errors = validate_structure(df, overlay)
+    struct_errors = validate_structure(df, overlay, custom_column_map)
     if struct_errors:
         return None, struct_errors
 

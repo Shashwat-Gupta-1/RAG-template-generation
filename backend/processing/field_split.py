@@ -196,11 +196,16 @@ def has_missing_required(overlay: Dict[str, Any], values: Dict[str, Any]) -> Lis
     return missing
 
 
-def build_field_values_single(template: Dict[str, Any], prompt: str) -> tuple[Dict[str, Any], List[str]]:
+def build_field_values_single(template: Dict[str, Any], prompt: str, existing_values: Dict[str, Any] = None) -> tuple[Dict[str, Any], List[str]]:
     """Compatibility helper for the single-poster route."""
     from backend.processing.llm import fill_values
 
     values = split_single(template, prompt)
+    if existing_values:
+        for k, v in existing_values.items():
+            if v is not None and v != "":
+                values[k] = v
+
     values = fill_values(template, values, prompt=prompt)
     missing = has_missing_required(template, values)
     return values, missing

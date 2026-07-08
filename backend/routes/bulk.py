@@ -71,14 +71,52 @@ def _apply_style_overrides(template: dict, overrides: dict) -> dict:
     patched = copy.deepcopy(template)
     allowed_keys = {"font_family", "font_size", "font_weight", "color"}
 
+    # Check if this is per-layer override (at least one value is a dict)
+    is_per_layer = any(isinstance(v, dict) for v in overrides.values())
+
     for layer in patched.get("overlay_layers") or []:
         if str(layer.get("type", "")).lower() != "text":
             continue
+        
+        lid = layer.get("id")
         style = layer.setdefault("style", {})
-        for key in allowed_keys:
-            val = overrides.get(key)
-            if val is not None and val != "":
-                style[key] = val
+
+        if is_per_layer:
+            if lid and lid in overrides:
+                layer_overrides = overrides[lid]
+                for key in allowed_keys:
+                    val = layer_overrides.get(key)
+                    if val is not None and val != "":
+                        style[key] = val
+        else:
+            for key in allowed_keys:
+                val = overrides.get(key)
+                if val is not None and val != "":
+                    style[key] = val
+
+    return patched
+
+def _apply_layout_overrides(template: dict, overrides: dict) -> dict:
+    """
+    Return a deep-copied template with customized layer coordinates.
+    """
+    import copy
+    if not overrides:
+        return template
+
+    patched = copy.deepcopy(template)
+
+    for layer in patched.get("overlay_layers") or []:
+        layer_id = layer.get("id")
+        if layer_id in overrides:
+            layer_override = overrides[layer_id]
+            box = layer.setdefault("box", {})
+            for key in ("x", "y", "width", "height"):
+                if key in layer_override:
+                    try:
+                        box[key] = int(layer_override[key])
+                    except (ValueError, TypeError):
+                        pass
 
     return patched
 
@@ -188,6 +226,8 @@ async def bulk_generate(
     excel_file: UploadFile = File(...),
     photo: Optional[UploadFile] = File(None),
     style_overrides: str = Form(None),
+    layout_overrides: str = Form(None),
+    column_mapping: str = Form(None),
 ):
     """
     Start a bulk generation job.
@@ -219,9 +259,24 @@ async def bulk_generate(
         except (json.JSONDecodeError, TypeError):
             pass
 
+    # Apply layout overrides
+    if layout_overrides:
+        try:
+            parsed_layout = json.loads(layout_overrides)
+            overlay = _apply_layout_overrides(overlay, parsed_layout)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    custom_column_map = None
+    if column_mapping:
+        try:
+            custom_column_map = json.loads(column_mapping)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     # Step 2 — Read and validate Excel
     file_bytes = await excel_file.read()
-    df, errors = validate_excel(file_bytes, overlay)
+    df, errors = validate_excel(file_bytes, overlay, custom_column_map)
     if errors:
         return JSONResponse(
             status_code=422,
@@ -229,9 +284,10 @@ async def bulk_generate(
         )
 
     # Step 3 — Build column map once for entire batch
-    # This maps overlay field IDs to Excel column names
-    # e.g. { "name": "Name", "branch_name": "Branch Name" }
-    column_map = build_column_map(overlay, list(df.columns))
+    if custom_column_map:
+        column_map = custom_column_map
+    else:
+        column_map = build_column_map(overlay, list(df.columns))
 
     # Step 4 — Read photo if provided
     photo_bytes = await photo.read() if photo else None
@@ -262,6 +318,8 @@ async def bulk_preview(
     excel_file: UploadFile = File(...),
     photo: Optional[UploadFile] = File(None),
     style_overrides: str = Form(None),
+    layout_overrides: str = Form(None),
+    column_mapping: str = Form(None),
 ):
     """
     Generate a preview poster for the first row of an Excel sheet.
@@ -284,12 +342,43 @@ async def bulk_preview(
         except (json.JSONDecodeError, TypeError):
             pass
 
+    # Apply layout overrides
+    if layout_overrides:
+        try:
+            parsed_layout = json.loads(layout_overrides)
+            overlay = _apply_layout_overrides(overlay, parsed_layout)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    custom_column_map = None
+    if column_mapping:
+        try:
+            custom_column_map = json.loads(column_mapping)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     file_bytes = await excel_file.read()
-    df, errors = validate_excel(file_bytes, overlay)
+    df, errors = validate_excel(file_bytes, overlay, custom_column_map)
     if errors:
+        excel_cols = []
+        try:
+            from backend.validation.excel_validator import read_excel
+            df_cols, _ = read_excel(file_bytes)
+            if df_cols is not None:
+                excel_cols = list(df_cols.columns)
+        except Exception:
+            pass
+
+        default_map = custom_column_map if custom_column_map else build_column_map(overlay, excel_cols)
         return JSONResponse(
             status_code=422,
-            content={"errors": errors}
+            content={
+                "errors": errors,
+                "template_id": overlay.get("template_id"),
+                "folder": overlay.get("folder"),
+                "overlay_layers": overlay.get("overlay_layers"),
+                "column_map": default_map,
+            }
         )
 
     if df.empty:
@@ -298,7 +387,11 @@ async def bulk_preview(
             content={"error": "Excel file is empty."}
         )
 
-    column_map = build_column_map(overlay, list(df.columns))
+    if custom_column_map:
+        column_map = custom_column_map
+    else:
+        column_map = build_column_map(overlay, list(df.columns))
+
     photo_bytes = await photo.read() if photo else None
 
     # Get first row data
@@ -328,6 +421,9 @@ async def bulk_preview(
             "total_rows": len(df),
             "template_id": overlay.get("template_id"),
             "folder": overlay.get("folder"),
+            "canvas": overlay.get("canvas"),
+            "overlay_layers": overlay.get("overlay_layers"),
+            "column_map": column_map,
         })
     except Exception as exc:
         return JSONResponse(

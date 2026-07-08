@@ -32,14 +32,52 @@ def _apply_style_overrides(template: dict, overrides: dict) -> dict:
     patched = copy.deepcopy(template)
     allowed_keys = {"font_family", "font_size", "font_weight", "color"}
 
+    # Check if this is per-layer override (at least one value is a dict)
+    is_per_layer = any(isinstance(v, dict) for v in overrides.values())
+
     for layer in patched.get("overlay_layers") or []:
         if str(layer.get("type", "")).lower() != "text":
             continue
+        
+        lid = layer.get("id")
         style = layer.setdefault("style", {})
-        for key in allowed_keys:
-            val = overrides.get(key)
-            if val is not None and val != "":
-                style[key] = val
+
+        if is_per_layer:
+            if lid and lid in overrides:
+                layer_overrides = overrides[lid]
+                for key in allowed_keys:
+                    val = layer_overrides.get(key)
+                    if val is not None and val != "":
+                        style[key] = val
+        else:
+            for key in allowed_keys:
+                val = overrides.get(key)
+                if val is not None and val != "":
+                    style[key] = val
+
+    return patched
+
+
+def _apply_layout_overrides(template: dict, overrides: dict) -> dict:
+    """
+    Return a deep-copied template with customized layer coordinates.
+    """
+    if not overrides:
+        return template
+
+    patched = copy.deepcopy(template)
+
+    for layer in patched.get("overlay_layers") or []:
+        layer_id = layer.get("id")
+        if layer_id in overrides:
+            layer_override = overrides[layer_id]
+            box = layer.setdefault("box", {})
+            for key in ("x", "y", "width", "height"):
+                if key in layer_override:
+                    try:
+                        box[key] = int(layer_override[key])
+                    except (ValueError, TypeError):
+                        pass
 
     return patched
 
@@ -52,6 +90,7 @@ async def generate(
     folder: str = Form(None),
     image: UploadFile = File(None),
     style_overrides: str = Form(None),   # JSON string: {"font_family":..., "color":..., etc.}
+    layout_overrides: str = Form(None),  # JSON string: {"layer_id": {"x":..., "y":...}}
 ):
     prompt = prompt.strip()
     if not prompt:
@@ -62,7 +101,7 @@ async def generate(
     form_data = await request.form()
     extra_inputs = {}
     for key, value in form_data.items():
-        if key not in {"prompt", "template_id", "folder", "image", "style_overrides"}:
+        if key not in {"prompt", "template_id", "folder", "image", "style_overrides", "layout_overrides"}:
             if isinstance(value, str):
                 extra_inputs[key] = value.strip()
 
@@ -74,6 +113,15 @@ async def generate(
         except (json.JSONDecodeError, TypeError):
             pass  # ignore malformed overrides silently
     print(f"[style_overrides] received={style_overrides!r}  parsed={parsed_overrides}")
+
+    # ── Parse layout overrides ─────────────────────────────────────────────
+    parsed_layout_overrides: dict = {}
+    if layout_overrides:
+        try:
+            parsed_layout_overrides = json.loads(layout_overrides)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    print(f"[layout_overrides] received={layout_overrides!r}  parsed={parsed_layout_overrides}")
 
 
     # ── Save uploaded photo ────────────────────────────────────────────────
@@ -89,10 +137,42 @@ async def generate(
 
     try:
         # ── Resolve template ───────────────────────────────────────────────
-        if folder and template_id:
-            template = load_template(folder, template_id)
-            if not template:
-                raise HTTPException(404, "Template not found.")
+        if folder:
+            if template_id:
+                template = load_template(folder, template_id)
+                if not template:
+                    raise HTTPException(404, "Template not found.")
+            else:
+                # User selected a folder from ambiguity choice but hasn't picked a template yet
+                all_templates = load_all_templates_in_folder(folder)
+                if not all_templates:
+                    raise HTTPException(404, "Folder not found or empty.")
+                if len(all_templates) == 1:
+                    template = all_templates[0]
+                    template_id = template["template_id"]
+                else:
+                    main_path = os.path.join(settings.templates_dir, folder, "main.json")
+                    display_name = folder.replace("_", " ").title()
+                    if os.path.exists(main_path):
+                        try:
+                            with open(main_path, encoding="utf-8") as f:
+                                main_data = json.load(f)
+                                display_name = main_data.get("display_name", display_name)
+                        except Exception:
+                            pass
+                    return {
+                        "status": "gallery",
+                        "folder": folder,
+                        "display_name": display_name,
+                        "templates": [
+                            {
+                                "template_id": t["template_id"],
+                                "description": t["description"],
+                                "base_image": t.get("base_image"),
+                            }
+                            for t in all_templates
+                        ],
+                    }
         else:
             matches = search_folder(prompt)
 
@@ -132,6 +212,7 @@ async def generate(
                         {
                             "template_id": t["template_id"],
                             "description": t["description"],
+                            "base_image": t.get("base_image"),
                         }
                         for t in all_templates
                     ],
@@ -140,8 +221,11 @@ async def generate(
         # ── Apply user style overrides ─────────────────────────────────────
         template = _apply_style_overrides(template, parsed_overrides)
 
+        # ── Apply user layout overrides ────────────────────────────────────
+        template = _apply_layout_overrides(template, parsed_layout_overrides)
+
         # ── Build field values ─────────────────────────────────────────────
-        overlay_values, null_fields = build_field_values_single(template, prompt)
+        overlay_values, null_fields = build_field_values_single(template, prompt, existing_values=extra_inputs)
 
         # Merge user inputs from request form parameters
         for key, val in extra_inputs.items():
@@ -163,6 +247,24 @@ async def generate(
         # ── Render ─────────────────────────────────────────────────────────
         out_path = os.path.join(settings.output_dir, f"output_{uuid.uuid4().hex}.png")
         render_poster(template, overlay_values, out_path, uploaded_image_path)
+
+        # Check if client prefers JSON response (for drag and drop editor metadata)
+        accept_header = request.headers.get("accept", "")
+        if "application/json" in accept_header or request.query_params.get("json") == "true":
+            import base64
+            with open(out_path, "rb") as f:
+                img_b64 = base64.b64encode(f.read()).decode("utf-8")
+            if os.path.exists(out_path):
+                os.remove(out_path)
+            return {
+                "status": "success",
+                "image": img_b64,
+                "canvas": template.get("canvas"),
+                "overlay_layers": template.get("overlay_layers"),
+                "template_id": template.get("template_id"),
+                "folder": folder,
+            }
+
         return FileResponse(out_path, media_type="image/png", filename="poster.png")
 
     except ConnectionError as e:

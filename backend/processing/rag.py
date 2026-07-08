@@ -76,16 +76,16 @@ def generate_tags_from_query(query: str, valid_folders: list[dict]) -> str:
 
 The user will describe what poster they want. Your job is to:
 1. Identify which folder best matches their request
-2. Return the folder name + its most relevant tags as a space-separated string
+2. Return the folder name + its most relevant tags and related contextual terms as a space-separated string
 
 Available folders and their tags:
 {folder_list}
 
 Rules:
 1. Return ONLY a space-separated string of words. No JSON, no explanation, no punctuation.
-2. Start with the folder name repeated twice, then add 5-6 of its most relevant tags.
-3. Only use folder names and tags from the list above. Never invent words.
-4. If nothing matches at all, return the single word: unknown
+2. Start by repeating the matched folder name(s) twice each (e.g. 'teej teej'). If the query matches multiple folders (e.g., 'rajasthan's festival' matches both 'teej' and 'gangaur'), repeat BOTH folder names twice (e.g., 'teej teej gangaur gangaur').
+3. You may include highly relevant contextual terms, synonyms, or associated concepts (e.g. 'festival', 'celebration', 'women', 'rajasthan', 'finance') to help semantic matching.
+4. If the query is broad or matches multiple folders, do NOT return 'unknown'. Generate tags and repeat the folder names for all related folders.
 
 Example output: holi holi festival colours gulal spring celebration greeting
 Example output: hiring hiring job recruitment college campus fresher placement
@@ -146,6 +146,14 @@ def search_by_tags(tags_string: str, top_k: int = 3) -> list[dict]:
             "templates": folder_data["templates"],
             "score": score
         })
+
+    # Boost folders that the LLM explicitly repeated twice in the tag string (e.g. "teej teej")
+    words = tags_string.lower().replace(",", " ").split()
+    first_words = words[:10]  # Check first 10 words
+    for m in matches:
+        folder_name = m["folder"].lower()
+        if first_words.count(folder_name) >= 2:
+            m["score"] = 0.95
 
     matches.sort(key=lambda x: x["score"], reverse=True)
     above = [m for m in matches if m["score"] >= settings.rag_score_threshold]

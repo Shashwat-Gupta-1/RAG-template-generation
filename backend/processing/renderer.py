@@ -372,7 +372,51 @@ def _draw_text_layer(draw: ImageDraw.ImageDraw, layer: Mapping[str, Any], values
 		current_y += (bounds[3] - bounds[1]) + line_spacing
 
 
-def render_overlay(overlay: Mapping[str, Any], values: Mapping[str, Any] | None = None) -> Image.Image:
+def _draw_image_layer(
+	image: Image.Image,
+	layer: Mapping[str, Any],
+	values: Mapping[str, Any],
+	uploaded_image_path: str | Path | None = None
+) -> None:
+	box = layer.get("box") or {}
+	layer_id = _normalize_text(layer.get("id"))
+
+	photo_image = None
+	img_data = values.get(layer_id)
+
+	if isinstance(img_data, bytes):
+		import io
+		try:
+			photo_image = Image.open(io.BytesIO(img_data)).convert("RGBA")
+		except Exception:
+			pass
+	elif uploaded_image_path:
+		resolved_path = _resolve_path(uploaded_image_path)
+		if resolved_path.exists():
+			try:
+				photo_image = Image.open(resolved_path).convert("RGBA")
+			except Exception:
+				pass
+
+	if not photo_image:
+		return
+
+	x = int(box.get("x") or 0)
+	y = int(box.get("y") or 0)
+	width = int(box.get("width") or 0)
+	height = int(box.get("height") or 0)
+
+	if width > 0 and height > 0:
+		photo_image = photo_image.resize((width, height), Image.LANCZOS)
+		image.paste(photo_image, (x, y), photo_image)
+
+
+
+def render_overlay(
+	overlay: Mapping[str, Any],
+	values: Mapping[str, Any] | None = None,
+	uploaded_image_path: str | Path | None = None
+) -> Image.Image:
 	resolved_values = values or {}
 	image = _load_base_image(overlay)
 	draw = ImageDraw.Draw(image)
@@ -380,8 +424,11 @@ def render_overlay(overlay: Mapping[str, Any], values: Mapping[str, Any] | None 
 	for layer in overlay.get("overlay_layers") or []:
 		if not isinstance(layer, Mapping):
 			continue
-		if _normalize_text(layer.get("type")).lower() == "text":
+		layer_type = _normalize_text(layer.get("type")).lower()
+		if layer_type == "text":
 			_draw_text_layer(draw, layer, resolved_values)
+		elif layer_type == "image":
+			_draw_image_layer(image, layer, resolved_values, uploaded_image_path)
 
 	return image
 
@@ -410,7 +457,7 @@ def render_poster(
 	uploaded_image_path: str | Path | None = None,
 ) -> Path:
 	"""Compatibility wrapper used by the FastAPI generate route."""
-	image = render_overlay(template, values=values)
+	image = render_overlay(template, values=values, uploaded_image_path=uploaded_image_path)
 	resolved_output_path = _resolve_path(output_path)
 	resolved_output_path.parent.mkdir(parents=True, exist_ok=True)
 	image.save(resolved_output_path)

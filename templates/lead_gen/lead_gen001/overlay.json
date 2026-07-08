@@ -18,7 +18,7 @@
       "type": "image",
       "placeholder": "{{pattern}}",
       "instruction": "qr code on poster",
-      "llm_can_invent": true,
+      "llm_can_invent": false,
       "box": {
         "x": 220,
         "y": 1029,
