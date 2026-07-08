@@ -149,10 +149,9 @@ def search_by_tags(tags_string: str, top_k: int = 3) -> list[dict]:
 
     # Boost folders that the LLM explicitly repeated twice in the tag string (e.g. "teej teej")
     words = tags_string.lower().replace(",", " ").split()
-    first_words = words[:10]  # Check first 10 words
     for m in matches:
         folder_name = m["folder"].lower()
-        if first_words.count(folder_name) >= 2:
+        if words.count(folder_name) >= 2:
             m["score"] = 0.95
 
     matches.sort(key=lambda x: x["score"], reverse=True)

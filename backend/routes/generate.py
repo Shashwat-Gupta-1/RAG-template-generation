@@ -185,6 +185,11 @@ async def generate(
 
             if (len(matches) > 1 and
                     matches[0]["score"] - matches[1]["score"] < settings.ambiguity_gap):
+                best_score = matches[0]["score"]
+                ambiguous_matches = [
+                    m for m in matches
+                    if best_score - m["score"] < settings.ambiguity_gap
+                ]
                 return {
                     "status": "ambiguous",
                     "matches": [
@@ -193,7 +198,7 @@ async def generate(
                             "display_name": m["display_name"],
                             "score": m["score"],
                         }
-                        for m in matches
+                        for m in ambiguous_matches
                     ],
                 }
 

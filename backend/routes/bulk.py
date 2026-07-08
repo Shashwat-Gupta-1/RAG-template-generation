@@ -50,7 +50,7 @@ from backend.processing.field_split import (
     split_row,
 )
 from backend.processing.llm import fill_invent_fields_only
-from backend.processing.rag import retrieve_template_overlay
+from backend.processing.rag import retrieve_template_overlay, load_template, load_all_templates_in_folder, search_folder
 from backend.processing.renderer import render_overlay
 from backend.validation.excel_validator import validate_excel, get_excel_template
 
@@ -228,6 +228,8 @@ async def bulk_generate(
     style_overrides: str = Form(None),
     layout_overrides: str = Form(None),
     column_mapping: str = Form(None),
+    folder: Optional[str] = Form(None),
+    template_id: Optional[str] = Form(None),
 ):
     """
     Start a bulk generation job.
@@ -240,8 +242,14 @@ async def bulk_generate(
     Response:
         { job_id, status, total_rows }
     """
-    # Step 1 — Find matching template from prompt
-    overlay = retrieve_template_overlay(prompt)
+    # Step 1 — Find matching template
+    if template_id and folder:
+        overlay = load_template(folder, template_id)
+        if overlay:
+            overlay["folder"] = folder
+    else:
+        overlay = retrieve_template_overlay(prompt)
+
     if not overlay:
         return JSONResponse(
             status_code=200,
@@ -320,19 +328,127 @@ async def bulk_preview(
     style_overrides: str = Form(None),
     layout_overrides: str = Form(None),
     column_mapping: str = Form(None),
+    folder: Optional[str] = Form(None),
+    template_id: Optional[str] = Form(None),
 ):
     """
     Generate a preview poster for the first row of an Excel sheet.
     """
-    overlay = retrieve_template_overlay(prompt)
-    if not overlay:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "error": "No matching template found for this prompt.",
-                "suggest_create": True,
-            }
-        )
+    overlay = None
+
+    # 1. Direct template match
+    if template_id and folder:
+        overlay = load_template(folder, template_id)
+        if overlay:
+            overlay["folder"] = folder
+        else:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "error": "Template not found.",
+                    "suggest_create": True,
+                }
+            )
+
+    # 2. Match folder templates
+    elif folder:
+        all_templates = load_all_templates_in_folder(folder)
+        if not all_templates:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "error": "No templates in matched folder.",
+                    "suggest_create": True,
+                }
+            )
+        if len(all_templates) == 1:
+            overlay = all_templates[0]
+            overlay["folder"] = folder
+        else:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "gallery",
+                    "folder": folder,
+                    "display_name": folder.replace("_", " ").title(),
+                    "templates": [
+                        {
+                            "template_id": t["template_id"],
+                            "description": t["description"],
+                            "base_image": t.get("base_image"),
+                        }
+                        for t in all_templates
+                    ],
+                }
+            )
+
+    # 3. Full RAG search with ambiguity gap check
+    else:
+        matches = search_folder(prompt, top_k=3)
+        if not matches:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "no_match",
+                    "suggest_create": True,
+                }
+            )
+
+        # Ambiguity check
+        if (len(matches) > 1 and
+                matches[0]["score"] - matches[1]["score"] < settings.ambiguity_gap):
+            best_score = matches[0]["score"]
+            ambiguous_matches = [
+                m for m in matches
+                if best_score - m["score"] < settings.ambiguity_gap
+            ]
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "ambiguous",
+                    "matches": [
+                        {
+                            "folder": m["folder"],
+                            "display_name": m["display_name"],
+                            "score": m["score"],
+                        }
+                        for m in ambiguous_matches
+                    ],
+                }
+            )
+
+        best = matches[0]
+        best_folder = best["folder"]
+        all_templates = load_all_templates_in_folder(best_folder)
+        if not all_templates:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "error": "No templates in matched folder.",
+                    "suggest_create": True,
+                }
+            )
+
+        if len(all_templates) == 1:
+            overlay = all_templates[0]
+            overlay["folder"] = best_folder
+        else:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "gallery",
+                    "folder": best_folder,
+                    "display_name": best["display_name"],
+                    "templates": [
+                        {
+                            "template_id": t["template_id"],
+                            "description": t["description"],
+                            "base_image": t.get("base_image"),
+                        }
+                        for t in all_templates
+                    ],
+                }
+            )
 
     # Apply style overrides
     if style_overrides:

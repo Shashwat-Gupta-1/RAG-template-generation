@@ -64,6 +64,8 @@ defaults = {
     "bulk_photo_data": None,
     "bulk_prompt_data": None,
     "bulk_style_overrides": {},
+    "bulk_selected_folder": None,
+    "bulk_selected_template_id": None,
     "single_started": False,
     "bulk_started": False,
     "single_layout_overrides": {},
@@ -72,6 +74,7 @@ defaults = {
     "fields_submitted": False,       # True once user clicks Submit on needs_input form
     "pending_missing_fields": [],    # The list of fields we are waiting on
     "bulk_column_mapping": {},
+    "last_submitted_prompt": "",     # The prompt text that was last submitted
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -118,6 +121,13 @@ with tab_single:
     )
 
     # 2. Design Selection and Live Preview section (Vertical Flow)
+    # Auto-reset if user changed the prompt text after a previous submission
+    if (st.session_state.single_started
+            and prompt.strip()
+            and prompt.strip() != st.session_state.last_submitted_prompt):
+        _reset_single()
+        st.rerun()
+
     if st.session_state.single_started:
         if prompt.strip():
             # ── Guard: if we are waiting for user to fill fields, don't auto-call backend ──
@@ -413,6 +423,8 @@ with tab_single:
             if not prompt.strip():
                 st.warning("Please describe what you need.")
             else:
+                _reset_single()  # Reset old session state (template selections, missing fields, overrides)
+                st.session_state.last_submitted_prompt = prompt.strip()
                 st.session_state.single_started = True
                 st.rerun()
 
@@ -441,6 +453,8 @@ with tab_bulk:
         st.session_state.bulk_style_overrides = {}
         st.session_state.bulk_layout_overrides = {}
         st.session_state.bulk_column_mapping = {}
+        st.session_state.bulk_selected_folder = None
+        st.session_state.bulk_selected_template_id = None
         st.session_state.bulk_started = False
 
     # ── Step 1: Input / Preview stage (shown when no job is running) ───────
@@ -454,6 +468,14 @@ with tab_bulk:
             help="This tells the system which template to use.",
             key="bulk_prompt",
         )
+
+        # Auto-reset if user changed the prompt text after a previous submission
+        if (st.session_state.bulk_started
+                and bulk_prompt.strip()
+                and st.session_state.bulk_prompt_data is not None
+                and bulk_prompt.strip() != st.session_state.bulk_prompt_data):
+            _reset_bulk()
+            st.rerun()
 
         bulk_excel = st.file_uploader(
             "Upload Excel file (.xlsx)",
@@ -554,6 +576,11 @@ with tab_bulk:
                     files["photo"] = (bulk_photo.name, bulk_photo.getvalue(), bulk_photo.type)
 
                 data = {"prompt": bulk_prompt.strip()}
+                st.session_state.bulk_prompt_data = bulk_prompt.strip()
+                if st.session_state.bulk_selected_folder:
+                    data["folder"] = st.session_state.bulk_selected_folder
+                if st.session_state.bulk_selected_template_id:
+                    data["template_id"] = st.session_state.bulk_selected_template_id
                 if st.session_state.bulk_style_overrides:
                     data["style_overrides"] = json.dumps(st.session_state.bulk_style_overrides)
                 if st.session_state.bulk_layout_overrides:
@@ -739,6 +766,37 @@ with tab_bulk:
                             if st.button("Cancel & start over", type="secondary", use_container_width=True):
                                 _reset_bulk()
                                 st.rerun()
+
+                    elif res.status_code == 200 and body.get("status") == "ambiguous":
+                        st.warning("Which category did you mean?")
+                        for m in body.get("matches", []):
+                            if st.button(m["display_name"], key=f"bulk_cat_{m['folder']}"):
+                                st.session_state.bulk_selected_folder = m["folder"]
+                                st.rerun()
+                        if st.button("Cancel & start over", type="secondary", key="btn_ambig_cancel"):
+                            _reset_bulk()
+                            st.rerun()
+
+                    elif res.status_code == 200 and body.get("status") == "gallery":
+                        st.info(f"Select a design for **{body['display_name']}**:")
+                        for t in body.get("templates", []):
+                            with st.container():
+                                st.markdown("---")
+                                col_info, col_img = st.columns([3, 2])
+                                with col_info:
+                                    st.subheader(t["template_id"])
+                                    st.write(t["description"])
+                                    if st.button("Use this Design", key=f"bulk_tmpl_{t['template_id']}", type="primary"):
+                                        st.session_state.bulk_selected_folder = body["folder"]
+                                        st.session_state.bulk_selected_template_id = t["template_id"]
+                                        st.rerun()
+                                with col_img:
+                                    base_img = t.get("base_image")
+                                    if base_img and os.path.exists(base_img):
+                                        st.image(base_img, caption=f"Preview: {t['template_id']}", use_column_width=True)
+                        if st.button("Cancel & start over", type="secondary", key="btn_gallery_cancel"):
+                            _reset_bulk()
+                            st.rerun()
 
                     elif res.status_code == 422:
                         st.error("Excel validation failed:")
