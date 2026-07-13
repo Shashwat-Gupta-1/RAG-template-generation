@@ -313,6 +313,179 @@ def _merge_font_families(primary: Sequence[str], fallback: Sequence[str]) -> lis
 	return merged
 
 
+# ── Windows GDI Drawing Helpers (for Devnagari / complex scripts layout) ──────
+import ctypes
+from ctypes import wintypes
+
+class BITMAPINFOHEADER(ctypes.Structure):
+	_fields_ = [
+		("biSize", wintypes.DWORD),
+		("biWidth", wintypes.LONG),
+		("biHeight", wintypes.LONG),
+		("biPlanes", wintypes.WORD),
+		("biBitCount", wintypes.WORD),
+		("biCompression", wintypes.DWORD),
+		("biSizeImage", wintypes.DWORD),
+		("biXPelsPerMeter", wintypes.LONG),
+		("biYPelsPerMeter", wintypes.LONG),
+		("biClrUsed", wintypes.DWORD),
+		("biClrImportant", wintypes.DWORD),
+	]
+
+class BITMAPINFO(ctypes.Structure):
+	_fields_ = [
+		("bmiHeader", BITMAPINFOHEADER),
+		("bmiColors", wintypes.DWORD * 3),
+	]
+
+class RECT(ctypes.Structure):
+	_fields_ = [
+		("left", wintypes.LONG),
+		("top", wintypes.LONG),
+		("right", wintypes.LONG),
+		("bottom", wintypes.LONG),
+	]
+
+DT_LEFT = 0x00000000
+DT_CENTER = 0x00000001
+DT_RIGHT = 0x00000002
+DT_WORDBREAK = 0x00000010
+DT_NOPREFIX = 0x00000800
+
+def _render_gdi_mask(
+	text: str,
+	font_name: str,
+	font_size: int,
+	is_bold: bool,
+	width: int,
+	height: int,
+	align: str,
+	vertical_align: str
+) -> Image.Image:
+	gdi32 = ctypes.windll.gdi32
+	user32 = ctypes.windll.user32
+
+	hdc_screen = user32.GetDC(0)
+	hdc = gdi32.CreateCompatibleDC(hdc_screen)
+	user32.ReleaseDC(0, hdc_screen)
+	
+	bmi = BITMAPINFO()
+	bmi.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+	bmi.bmiHeader.biWidth = width
+	bmi.bmiHeader.biHeight = -height
+	bmi.bmiHeader.biPlanes = 1
+	bmi.bmiHeader.biBitCount = 32
+	bmi.bmiHeader.biCompression = 0
+
+	pixels_ptr = ctypes.c_void_p()
+	hbitmap = gdi32.CreateDIBSection(
+		hdc, ctypes.byref(bmi), 0, ctypes.byref(pixels_ptr), None, 0
+	)
+	gdi32.SelectObject(hdc, hbitmap)
+
+	gdi32.SetBkMode(hdc, 1)  # TRANSPARENT
+	gdi32.SetTextColor(hdc, 0x00FFFFFF)
+
+	hbrush = gdi32.CreateSolidBrush(0x00000000)
+	rect = RECT(0, 0, width, height)
+	user32.FillRect(hdc, ctypes.byref(rect), hbrush)
+	gdi32.DeleteObject(hbrush)
+
+	weight = 700 if is_bold else 400
+	hfont = gdi32.CreateFontW(
+		-font_size, 0, 0, 0, weight, 0, 0, 0,
+		1,  # DEFAULT_CHARSET
+		0, 0,
+		4,  # ANTIALIASED_QUALITY
+		0, font_name
+	)
+	gdi32.SelectObject(hdc, hfont)
+
+	flags = DT_WORDBREAK | DT_NOPREFIX
+	if align == "center":
+		flags |= DT_CENTER
+	elif align == "right":
+		flags |= DT_RIGHT
+	else:
+		flags |= DT_LEFT
+
+	# Compute vertical alignment using DT_CALCRECT
+	rect_calc = RECT(0, 0, width, height)
+	user32.DrawTextW(hdc, text, -1, ctypes.byref(rect_calc), flags | 0x00000400)
+	calc_height = rect_calc.bottom - rect_calc.top
+
+	if vertical_align == "middle":
+		top_y = max(0, (height - calc_height) // 2)
+	elif vertical_align == "bottom":
+		top_y = max(0, height - calc_height)
+	else:
+		top_y = 0
+
+	rect_draw = RECT(0, top_y, width, top_y + calc_height)
+	user32.DrawTextW(hdc, text, -1, ctypes.byref(rect_draw), flags)
+
+	buf = ctypes.string_at(pixels_ptr, width * height * 4)
+	img_rgba = Image.frombuffer("RGBA", (width, height), buf, "raw", "BGRA", 0, 1)
+	mask = img_rgba.convert("L")
+
+	gdi32.DeleteObject(hfont)
+	gdi32.DeleteObject(hbitmap)
+	gdi32.DeleteDC(hdc)
+
+	return mask
+
+def _draw_text_gdi(
+	draw: ImageDraw.ImageDraw,
+	text: str,
+	font_families: Sequence[str],
+	font_size: int,
+	is_bold: bool,
+	color_hex: str,
+	box: Mapping[str, Any],
+	align: str,
+	vertical_align: str,
+	scripts: set[str]
+) -> None:
+	font_path = None
+	for candidate in _font_candidate_paths(font_families, "bold" if is_bold else "regular", scripts):
+		if candidate.exists():
+			font_path = candidate
+			break
+
+	font_name = "Arial"
+	added_font = False
+	if font_path:
+		font_name = font_path.stem
+		# Clean weight variant suffix from family name
+		for suffix in ["-Bold", "-Regular", "-SemiBold", "-Medium", " Bold", " Regular", " SemiBold", " Medium"]:
+			if font_name.endswith(suffix):
+				font_name = font_name[:-len(suffix)]
+				break
+		# If font file is local to project, register it temporarily in Windows GDI
+		if "Windows" not in str(font_path):
+			try:
+				ctypes.windll.gdi32.AddFontResourceExW(str(font_path), 0x10, 0)
+				added_font = True
+			except Exception:
+				pass
+
+	try:
+		x = int(box.get("x") or 0)
+		y = int(box.get("y") or 0)
+		width = int(box.get("width") or 0)
+		height = int(box.get("height") or 0)
+
+		mask = _render_gdi_mask(text, font_name, font_size, is_bold, width, height, align, vertical_align)
+		solid = Image.new("RGBA", (width, height), color_hex)
+		draw._image.paste(solid, (x, y), mask)
+	finally:
+		if added_font and font_path:
+			try:
+				ctypes.windll.gdi32.RemoveFontResourceExW(str(font_path), 0x10, 0)
+			except Exception:
+				pass
+
+
 def _draw_text_layer(draw: ImageDraw.ImageDraw, layer: Mapping[str, Any], values: Mapping[str, Any]) -> None:
 	box = layer.get("box") or {}
 	style = layer.get("style") or {}
@@ -357,6 +530,12 @@ def _draw_text_layer(draw: ImageDraw.ImageDraw, layer: Mapping[str, Any], values
 	align = _normalize_text(style.get("align")).lower()
 	stroke_width = 0
 	is_bold = _is_bold_weight(style.get("font_weight"))
+
+	import platform
+	if platform.system() == "Windows" and scripts:
+		_draw_text_gdi(draw, text, font_families, font.size, is_bold, color, box, align, vertical_align, scripts)
+		return
+
 	if is_bold:
 		stroke_width = 1 if getattr(font, "size", 24) < 42 else 2
 

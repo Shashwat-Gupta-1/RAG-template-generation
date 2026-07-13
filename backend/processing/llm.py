@@ -105,6 +105,7 @@ def fill_values(
     overlay: Dict[str, Any],
     values: Dict[str, Any],
     prompt: str = "",
+    field_instruction_overrides: Dict[str, str] = None,
 ) -> Dict[str, Any]:
     """
     Replace LLM sentinel values in the values dict with real content.
@@ -117,6 +118,11 @@ def fill_values(
         Both NEEDS_LLM_INVENT and NEEDS_LLM_EXTRACT fields reach here.
         prompt contains the user's natural language input.
 
+    Args:
+        field_instruction_overrides: Optional dict mapping field_id → full instruction string.
+            Overrides the template's default instruction for that field.
+            E.g. {"caption": "GENERATE — Write a festive Teej greeting for Riddhi in Hindi"}
+
     Returns the updated values dict.
     """
     # Collect fields that need LLM work
@@ -125,6 +131,7 @@ def fill_values(
         for fid, sentinel in values.items()
         if sentinel in (NEEDS_LLM_INVENT, NEEDS_LLM_EXTRACT)
     }
+    print(f"[llm.fill_values] fields_needing_llm={list(fields_needing_llm.keys())}")
 
     if not fields_needing_llm:
         return values  # nothing to do
@@ -137,12 +144,16 @@ def fill_values(
 
     field_instructions: Dict[str, str] = {}
     for fid, sentinel in fields_needing_llm.items():
-        layer = layer_map.get(fid, {})
-        instruction = str(layer.get("instruction", "")).strip()
-        if sentinel == NEEDS_LLM_INVENT:
-            field_instructions[fid] = f"GENERATE — {instruction}"
+        # Check for user-provided instruction override first
+        if field_instruction_overrides and fid in field_instruction_overrides:
+            field_instructions[fid] = field_instruction_overrides[fid]
         else:
-            field_instructions[fid] = f"EXTRACT from prompt — {instruction}"
+            layer = layer_map.get(fid, {})
+            instruction = str(layer.get("instruction", "")).strip()
+            if sentinel == NEEDS_LLM_INVENT:
+                field_instructions[fid] = f"GENERATE — {instruction}"
+            else:
+                field_instructions[fid] = f"EXTRACT from prompt — {instruction}"
 
     system_prompt = (
         "You are a poster content assistant for MS Fincap, a financial services NBFC in Rajasthan. "

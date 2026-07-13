@@ -101,7 +101,7 @@ async def generate(
     form_data = await request.form()
     extra_inputs = {}
     for key, value in form_data.items():
-        if key not in {"prompt", "template_id", "folder", "image", "style_overrides", "layout_overrides"}:
+        if key not in {"prompt", "template_id", "folder", "image", "style_overrides", "layout_overrides", "caption_prompt"}:
             if isinstance(value, str):
                 extra_inputs[key] = value.strip()
 
@@ -113,6 +113,7 @@ async def generate(
         except (json.JSONDecodeError, TypeError):
             pass  # ignore malformed overrides silently
     print(f"[style_overrides] received={style_overrides!r}  parsed={parsed_overrides}")
+    print(f"[extra_inputs] received={extra_inputs}")
 
     # ── Parse layout overrides ─────────────────────────────────────────────
     parsed_layout_overrides: dict = {}
@@ -229,8 +230,16 @@ async def generate(
         # ── Apply user layout overrides ────────────────────────────────────
         template = _apply_layout_overrides(template, parsed_layout_overrides)
 
-        # ── Build field values ─────────────────────────────────────────────
-        overlay_values, null_fields = build_field_values_single(template, prompt, existing_values=extra_inputs)
+        # Extract caption_prompt override (not a real field value, handled separately)
+        caption_prompt_override = form_data.get("caption_prompt")
+        if caption_prompt_override:
+            caption_prompt_override = str(caption_prompt_override).strip()
+        
+        overlay_values, null_fields = build_field_values_single(
+            template, prompt,
+            existing_values=extra_inputs,
+            caption_instruction=caption_prompt_override,
+        )
 
         # Merge user inputs from request form parameters
         for key, val in extra_inputs.items():
@@ -247,9 +256,10 @@ async def generate(
                 "missing_fields": null_fields,
                 "template_id": template["template_id"],
                 "folder": folder,
+                "overlay_values": overlay_values,
             }
 
-        # ── Render ─────────────────────────────────────────────────────────
+        # ── Render ──────────────────────────────────────────────────
         out_path = os.path.join(settings.output_dir, f"output_{uuid.uuid4().hex}.png")
         render_poster(template, overlay_values, out_path, uploaded_image_path)
 
@@ -268,6 +278,7 @@ async def generate(
                 "overlay_layers": template.get("overlay_layers"),
                 "template_id": template.get("template_id"),
                 "folder": folder,
+                "overlay_values": overlay_values,
             }
 
         return FileResponse(out_path, media_type="image/png", filename="poster.png")

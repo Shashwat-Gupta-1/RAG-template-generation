@@ -1,8 +1,10 @@
 import time
+import io
 import json
 import base64
 # pyrefly: ignore [missing-import]
 import streamlit as st
+from PIL import Image
 import requests
 
 API = "http://localhost:8000"
@@ -53,7 +55,8 @@ defaults = {
     "selected_folder": None,
     "selected_template_id": None,
     "extra_fields": {},
-    # Bulk state
+    "single_started": False,
+    "bulk_started": False,
     "bulk_job_id": None,
     "bulk_total": 0,
     "bulk_done": False,
@@ -64,17 +67,21 @@ defaults = {
     "bulk_photo_data": None,
     "bulk_prompt_data": None,
     "bulk_style_overrides": {},
-    "bulk_selected_folder": None,
-    "bulk_selected_template_id": None,
-    "single_started": False,
-    "bulk_started": False,
-    "single_layout_overrides": {},
     "bulk_layout_overrides": {},
+    "single_layout_overrides": {},
     "single_style_overrides": {},
-    "fields_submitted": False,       # True once user clicks Submit on needs_input form
+    "fields_submitted": False,
     "pending_missing_fields": [],    # The list of fields we are waiting on
     "bulk_column_mapping": {},
     "last_submitted_prompt": "",     # The prompt text that was last submitted
+    "single_stored_values": {},      # Stored field values to avoid Streamlit state deletion
+    "caption_locked": False,          # True once caption is generated; prevents LLM re-generation
+    "custom_caption_prompt": "",      # User's custom prompt for caption regeneration
+    "pending_ambiguous_matches": [],   # Stored ambiguous folder matches — avoids repeated API calls
+    "bulk_selected_folder": None,      # Folder selected in the bulk tab
+    "bulk_selected_template_id": None, # Template selected in the bulk tab
+    "bulk_custom_caption_prompt": "",  # Custom caption prompt for bulk AI regeneration
+    "bulk_pending_ambiguous_matches": [],  # Stored ambiguous folder matches for bulk tab
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -102,8 +109,12 @@ with tab_single:
         st.session_state.pending_missing_fields = []
         st.session_state.single_layout_overrides = {}
         st.session_state.single_style_overrides = {}
+        st.session_state.single_stored_values = {}
+        st.session_state.caption_locked = False
+        st.session_state.custom_caption_prompt = ""
+        st.session_state.pending_ambiguous_matches = []
         for k in list(st.session_state.keys()):
-            if k.startswith("field_"):
+            if k.startswith("field_") or k.startswith("widget_editor_"):
                 del st.session_state[k]
 
     # 1. Main Inputs - Full Width
@@ -130,7 +141,7 @@ with tab_single:
 
     if st.session_state.single_started:
         if prompt.strip():
-            # ── Guard: if we are waiting for user to fill fields, don't auto-call backend ──
+            # ── Guard: if we are waiting for user to fill fields, show form ──
             if st.session_state.pending_missing_fields:
                 st.write("**Please fill in the poster details:**")
                 for fid in st.session_state.pending_missing_fields:
@@ -153,11 +164,25 @@ with tab_single:
                     if not all_filled:
                         st.caption("Fill in all fields above to enable the Generate button.")
                     if submit_btn:
+                        # Copy widget inputs to single_stored_values so they persist
+                        for fid in st.session_state.pending_missing_fields:
+                            st.session_state.single_stored_values[fid] = st.session_state.get(f"field_{fid}", "")
                         st.session_state.fields_submitted = True
                         st.rerun()
 
+            # ── Guard: if backend already returned ambiguous, show buttons without re-calling ──
+            if st.session_state.pending_ambiguous_matches:
+                st.warning("Which category did you mean?")
+                for m in st.session_state.pending_ambiguous_matches:
+                    if st.button(m["display_name"], key=f"cat_{m['folder']}", type="primary"):
+                        st.session_state.selected_folder = m["folder"]
+                        st.session_state.pending_ambiguous_matches = []
+                        st.rerun()
+                if st.button("Cancel", type="secondary", key="btn_ambiguous_cancel"):
+                    _reset_single()
+                    st.rerun()
             # Only call backend when: no pending fields OR fields have been submitted
-            if not st.session_state.pending_missing_fields or st.session_state.fields_submitted:
+            elif not st.session_state.pending_missing_fields or st.session_state.fields_submitted:
                 # Sync slider state values dynamically (layout and styling)
                 for key in list(st.session_state.keys()):
                     # Layout overrides sync
@@ -206,7 +231,7 @@ with tab_single:
                         if not layer_style:
                             st.session_state.single_style_overrides.pop(lid, None)
 
-                # Gather base values to hit endpoint and fetch preview or needs_input
+                # Gather base values to hit endpoint
                 data = {
                     "prompt": prompt.strip(),
                     "folder": st.session_state.selected_folder or "",
@@ -218,49 +243,53 @@ with tab_single:
                 if st.session_state.single_layout_overrides:
                     data["layout_overrides"] = json.dumps(st.session_state.single_layout_overrides)
 
-                # Gather dynamically entered input fields
-                for key in list(st.session_state.keys()):
-                    if key.startswith("field_"):
-                        field_id = key.replace("field_", "")
-                        data[field_id] = st.session_state[key]
+                # Gather dynamically entered input fields from single_stored_values
+                for fid, val in st.session_state.single_stored_values.items():
+                    if val is not None and val != "":
+                        data[fid] = val
+
+                # Send custom caption prompt if user wrote one
+                if st.session_state.custom_caption_prompt:
+                    data["caption_prompt"] = st.session_state.custom_caption_prompt
+
+                print(f"[frontend] payload data={data}")
 
                 files = {}
                 if photo:
                     files["image"] = (photo.name, photo.getvalue(), photo.type)
 
-                spinner_msg = (
-                    "Generating preview…"
-                    if st.session_state.selected_template_id
-                    else "Finding the right template…"
-                )
-
                 try:
-                    with st.spinner(spinner_msg):
+                    with st.spinner("Generating poster..."):
                         res = requests.post(
                             f"{API}/generate?json=true",
                             data=data,
                             files=files or None,
                             headers={"Accept": "application/json"},
-                            timeout=30,
+                            timeout=60,
                         )
-                    
                 except Exception as exc:
                     st.error(f"Could not connect to backend: {exc}")
                     res = None
-                
+
                 if res is not None:
                     resp = res.json()
                     status = resp.get("status")
 
                     if status == "success":
-                        # Show preview + draggable editor
-                        st.subheader("Live Preview")
+                        st.session_state.pending_missing_fields = []
+                        st.session_state.fields_submitted = False
                         
+                        # Cache generated values (incl. LLM caption) for the editor
+                        if "overlay_values" in resp:
+                            for fid, val in resp["overlay_values"].items():
+                                if val is not None and val != "":
+                                    st.session_state.single_stored_values[fid] = val
+
+                        st.subheader("Live Preview")
                         img_bytes = base64.b64decode(resp["image"])
                         canvas = resp.get("canvas") or {"width": 1024, "height": 1536}
                         layers = resp.get("overlay_layers") or []
 
-                        # Show the poster image
                         st.image(img_bytes, use_column_width=True)
 
                         # Draggable position & styling editor expander
@@ -288,13 +317,111 @@ with tab_single:
                                     if not lid or not box:
                                         continue
                                     
-                                    st.markdown(f"#### **Placeholder: {lid}**")
+                                    st.markdown(f"**Placeholder: {lid}**")
                                     
-                                    # Layout controls
+                                    # Text input / caption editor
+                                    ltype = str(layer.get("type", "")).lower()
+                                    if ltype == "text":
+                                        val_key = f"widget_editor_{lid}"
+                                        current_val = st.session_state.single_stored_values.get(lid, "")
+
+                                        if lid == "caption":
+                                            # ── Caption special UI ────────────────────────────────
+
+                                            # ► Section 1: Direct text — exact text user wants on the poster
+                                            st.markdown("**Section 1 — Type your own caption**")
+                                            st.caption("This exact text will appear on the poster. Leave blank to let AI generate it.")
+                                            edited_caption = st.text_area(
+                                                "Caption text",
+                                                value=str(current_val),
+                                                key=val_key,
+                                                help="Type exactly what you want on the poster. Fill this to skip AI generation."
+                                            )
+                                            if edited_caption != current_val:
+                                                st.session_state.single_stored_values["caption"] = edited_caption
+                                                st.rerun()
+
+                                            st.caption("Caption is frozen — move sliders freely without regenerating it.")
+
+                                            st.markdown("---")
+
+                                            # ► Section 2: AI caption prompt — ask LLM to regenerate
+                                            st.markdown("**Section 2 — Ask AI to write the caption**")
+                                            st.caption("Give the AI an instruction and click Regenerate to create a new caption.")
+                                            with st.container():
+                                                custom_prompt = st.text_input(
+                                                    "Prompt for AI (optional)",
+                                                    placeholder="e.g. Write a festive Teej greeting for Riddhi in Hindi",
+                                                    key="ui_custom_caption_prompt",
+                                                    value=st.session_state.custom_caption_prompt,
+                                                )
+                                                regen_btn = st.button(
+                                                    "Regenerate Caption",
+                                                    key="btn_regen_caption",
+                                                    help="Clear the current caption and ask the AI to generate a new one."
+                                                )
+                                                if regen_btn:
+                                                    # Save AI prompt, clear direct caption text, unlock for LLM
+                                                    st.session_state.custom_caption_prompt = custom_prompt.strip()
+                                                    st.session_state.single_stored_values.pop("caption", None)
+                                                    st.session_state.caption_locked = False
+                                                    st.rerun()
+                                        else:
+                                            # ── Regular text field ────────────────────────────────
+                                            if len(str(current_val)) > 40:
+                                                edited_val = st.text_area(f"Text content ({lid})", value=str(current_val), key=val_key)
+                                            else:
+                                                edited_val = st.text_input(f"Text content ({lid})", value=str(current_val), key=val_key)
+
+                                            if edited_val != current_val:
+                                                st.session_state.single_stored_values[lid] = edited_val
+                                                st.rerun()
+
+                                    # Layout controls — number input (type) + slider (drag), kept in sync
                                     current_layout = st.session_state.single_layout_overrides.get(lid, box)
-                                    c1, c2 = st.columns(2)
-                                    c1.slider(f"X position ({lid})", 0, canvas_w, int(current_layout.get("x", box["x"])), key=f"sx_{lid}")
-                                    c2.slider(f"Y position ({lid})", 0, canvas_h, int(current_layout.get("y", box["y"])), key=f"sy_{lid}")
+                                    x_default = int(current_layout.get("x", box["x"]))
+                                    y_default = int(current_layout.get("y", box["y"]))
+
+                                    sl_x_key = f"sx_{lid}"
+                                    sl_y_key = f"sy_{lid}"
+                                    ni_x_key = f"ni_sx_{lid}"
+                                    ni_y_key = f"ni_sy_{lid}"
+
+                                    # Initialize both on first render
+                                    for _k, _v in [(sl_x_key, x_default), (sl_y_key, y_default),
+                                                   (ni_x_key, x_default), (ni_y_key, y_default)]:
+                                        if _k not in st.session_state:
+                                            st.session_state[_k] = _v
+
+                                    # Bidirectional callbacks — default params capture current loop values
+                                    def _ni_x_ch(_sk=sl_x_key, _nk=ni_x_key):
+                                        st.session_state[_sk] = st.session_state[_nk]
+                                    def _ni_y_ch(_sk=sl_y_key, _nk=ni_y_key):
+                                        st.session_state[_sk] = st.session_state[_nk]
+                                    def _sl_x_ch(_sk=sl_x_key, _nk=ni_x_key):
+                                        st.session_state[_nk] = st.session_state[_sk]
+                                    def _sl_y_ch(_sk=sl_y_key, _nk=ni_y_key):
+                                        st.session_state[_nk] = st.session_state[_sk]
+
+                                    # Row 1: number inputs (user can type exact pixel value)
+                                    ni_c1, ni_c2 = st.columns(2)
+                                    ni_c1.number_input(
+                                        f"X position ({lid})",
+                                        min_value=0, max_value=canvas_w,
+                                        step=1, key=ni_x_key, on_change=_ni_x_ch
+                                    )
+                                    ni_c2.number_input(
+                                        f"Y position ({lid})",
+                                        min_value=0, max_value=canvas_h,
+                                        step=1, key=ni_y_key, on_change=_ni_y_ch
+                                    )
+
+                                    # Row 2: sliders (user can drag)
+                                    sl_c1, sl_c2 = st.columns(2)
+                                    sl_c1.slider(f"X ({lid})", 0, canvas_w, key=sl_x_key,
+                                        label_visibility="collapsed", on_change=_sl_x_ch)
+                                    sl_c2.slider(f"Y ({lid})", 0, canvas_h, key=sl_y_key,
+                                        label_visibility="collapsed", on_change=_sl_y_ch)
                                     
                                     # If it's a text layer, render font styling overrides
                                     ltype = str(layer.get("type", "")).lower()
@@ -372,47 +499,52 @@ with tab_single:
                             if st.button("Start Over", type="secondary", use_container_width=True):
                                 _reset_single()
                                 st.rerun()
+                    elif status == "needs_input":
+                        if "overlay_values" in resp:
+                            for fid, val in resp["overlay_values"].items():
+                                if val is not None and val != "":
+                                    if fid not in st.session_state.single_stored_values:
+                                        st.session_state.single_stored_values[fid] = val
+                        st.session_state.pending_missing_fields = resp["missing_fields"]
+                        st.session_state.selected_folder = resp.get("folder")
+                        st.session_state.selected_template_id = resp.get("template_id")
+                        st.session_state.fields_submitted = False
+                        st.rerun()
+
+                    elif status == "ambiguous":
+                        # Store in session state so buttons persist across reruns
+                        st.session_state.pending_ambiguous_matches = resp["matches"]
+                        st.rerun()
+
+                    elif status == "gallery":
+                        st.info(f"Select a design for **{resp['display_name']}**:")
+                        for t in resp["templates"]:
+                            with st.container():
+                                st.markdown("---")
+                                col_info, col_img = st.columns([3, 2])
+                                with col_info:
+                                    st.subheader(t["template_id"])
+                                    st.write(t["description"])
+                                    if st.button("Use this Design", key=f"tmpl_{t['template_id']}", type="primary"):
+                                        st.session_state.selected_folder = resp["folder"]
+                                        st.session_state.selected_template_id = t["template_id"]
+                                        st.rerun()
+                                with col_img:
+                                    base_img = t.get("base_image")
+                                    if base_img and os.path.exists(base_img):
+                                        st.image(base_img, caption=f"Preview: {t['template_id']}", use_column_width=True)
+
+                    elif status == "no_match":
+                        st.error("No matching template found.")
+                        if st.button("Start Over", type="secondary"):
+                            _reset_single(); st.rerun()
+
                     else:
+                        st.error(f"Unexpected backend status: {status}")
+                        if st.button("Start Over", type="secondary"):
+                            _reset_single(); st.rerun()
 
-                        if status == "no_match":
-                            st.error("No matching template found.")
-                            if st.button("Start Over", type="secondary"):
-                                _reset_single()
-                                st.rerun()
-                        
-                        elif status == "ambiguous":
-                            st.warning("Which category did you mean?")
-                            for m in resp["matches"]:
-                                if st.button(m["display_name"], key=f"cat_{m['folder']}"):
-                                    st.session_state.selected_folder = m["folder"]
-                                    st.rerun()
 
-                        elif status == "gallery":
-                            st.info(f"Select a design for **{resp['display_name']}**:")
-                            for t in resp["templates"]:
-                                with st.container():
-                                    st.markdown("---")
-                                    col_info, col_img = st.columns([3, 2])
-                                    with col_info:
-                                        st.subheader(t["template_id"])
-                                        st.write(t["description"])
-                                        if st.button("Use this Design", key=f"tmpl_{t['template_id']}", type="primary"):
-                                            st.session_state.selected_folder = resp["folder"]
-                                            st.session_state.selected_template_id = t["template_id"]
-                                            st.rerun()
-                                    with col_img:
-                                        base_img = t.get("base_image")
-                                        if base_img and os.path.exists(base_img):
-                                            st.image(base_img, caption=f"Preview: {t['template_id']}", use_column_width=True)
-
-                        elif status == "needs_input":
-                            # Save the missing fields list and template info in session state
-                            # so we can show the form WITHOUT calling the backend again
-                            st.session_state.pending_missing_fields = resp["missing_fields"]
-                            st.session_state.selected_folder = resp.get("folder")
-                            st.session_state.selected_template_id = resp.get("template_id")
-                            st.session_state.fields_submitted = False
-                            st.rerun()  # Rerun so the guard above takes over and shows the form
         else:
             st.warning("Please describe what you need.")
             st.session_state.single_started = False
@@ -455,6 +587,8 @@ with tab_bulk:
         st.session_state.bulk_column_mapping = {}
         st.session_state.bulk_selected_folder = None
         st.session_state.bulk_selected_template_id = None
+        st.session_state.bulk_custom_caption_prompt = ""
+        st.session_state.bulk_pending_ambiguous_matches = []
         st.session_state.bulk_started = False
 
     # ── Step 1: Input / Preview stage (shown when no job is running) ───────
@@ -563,8 +697,21 @@ with tab_bulk:
                         if not layer_style:
                             st.session_state.bulk_style_overrides.pop(lid, None)
 
+                # ── Guard: if backend already returned ambiguous, show buttons without re-calling ──
+                if st.session_state.bulk_pending_ambiguous_matches:
+                    st.warning("Which category did you mean?")
+                    for m in st.session_state.bulk_pending_ambiguous_matches:
+                        if st.button(m["display_name"], key=f"bulk_cat_{m['folder']}", type="primary"):
+                            st.session_state.bulk_selected_folder = m["folder"]
+                            st.session_state.bulk_pending_ambiguous_matches = []
+                            st.rerun()
+                    if st.button("Cancel & start over", type="secondary", key="btn_bulk_ambig_cancel"):
+                        _reset_bulk()
+                        st.rerun()
+
                 # Call /bulk/preview dynamically
                 excel_bytes = bulk_excel.getvalue()
+
                 files = {
                     "excel_file": (
                         bulk_excel.name,
@@ -587,6 +734,8 @@ with tab_bulk:
                     data["layout_overrides"] = json.dumps(st.session_state.bulk_layout_overrides)
                 if st.session_state.bulk_column_mapping:
                     data["column_mapping"] = json.dumps(st.session_state.bulk_column_mapping)
+                if st.session_state.bulk_custom_caption_prompt:
+                    data["caption_prompt"] = st.session_state.bulk_custom_caption_prompt
 
                 try:
                     with st.spinner("Generating preview of the first row…"):
@@ -659,13 +808,88 @@ with tab_bulk:
                                     if not lid or not box:
                                         continue
                                     
-                                    st.markdown(f"#### **Placeholder: {lid}**")
-                                    
-                                    # Layout controls
+                                    st.markdown(f"**Placeholder: {lid}**")
+
+                                    # Caption special UI for bulk tab
+                                    ltype_check = str(layer.get("type", "")).lower()
+                                    if ltype_check == "text" and lid == "caption":
+                                        st.markdown("**Section 1 — Type your own caption**")
+                                        st.caption("This exact text will appear on every poster. Leave blank to let AI generate it per row.")
+                                        bulk_direct_caption = st.text_input(
+                                            "Caption text (applies to all rows)",
+                                            placeholder="e.g. Happy Teej to all!",
+                                            key="bulk_direct_caption",
+                                        )
+                                        if bulk_direct_caption:
+                                            data["caption"] = bulk_direct_caption
+
+                                        st.markdown("---")
+
+                                        st.markdown("**Section 2 — Ask AI to write the caption**")
+                                        st.caption("Give the AI an instruction. It will generate a caption for every poster in the batch.")
+                                        bulk_ai_prompt = st.text_input(
+                                            "Prompt for AI (optional)",
+                                            placeholder="e.g. Write a festive Teej greeting in Hindi",
+                                            key="ui_bulk_caption_prompt",
+                                            value=st.session_state.bulk_custom_caption_prompt,
+                                        )
+                                        bulk_regen_btn = st.button(
+                                            "Apply AI Caption Prompt",
+                                            key="btn_bulk_regen_caption",
+                                            help="Save this prompt so every poster in the batch gets an AI-generated caption based on it."
+                                        )
+                                        if bulk_regen_btn:
+                                            st.session_state.bulk_custom_caption_prompt = bulk_ai_prompt.strip()
+                                            if "caption" in data:
+                                                del data["caption"]
+                                            st.rerun()
+
+                                        st.markdown("---")
+                                    # Layout controls — number input (type) + slider (drag), kept in sync
                                     current_layout = st.session_state.bulk_layout_overrides.get(lid, box)
-                                    c1, c2 = st.columns(2)
-                                    c1.slider(f"X position ({lid})", 0, canvas_w, int(current_layout.get("x", box["x"])), key=f"bsx_{lid}")
-                                    c2.slider(f"Y position ({lid})", 0, canvas_h, int(current_layout.get("y", box["y"])), key=f"bsy_{lid}")
+                                    bx_default = int(current_layout.get("x", box["x"]))
+                                    by_default = int(current_layout.get("y", box["y"]))
+
+                                    bsl_x_key = f"bsx_{lid}"
+                                    bsl_y_key = f"bsy_{lid}"
+                                    bni_x_key = f"bni_sx_{lid}"
+                                    bni_y_key = f"bni_sy_{lid}"
+
+                                    # Initialize both on first render
+                                    for _k, _v in [(bsl_x_key, bx_default), (bsl_y_key, by_default),
+                                                   (bni_x_key, bx_default), (bni_y_key, by_default)]:
+                                        if _k not in st.session_state:
+                                            st.session_state[_k] = _v
+
+                                    # Bidirectional callbacks — default params capture current loop values
+                                    def _bni_x_ch(_sk=bsl_x_key, _nk=bni_x_key):
+                                        st.session_state[_sk] = st.session_state[_nk]
+                                    def _bni_y_ch(_sk=bsl_y_key, _nk=bni_y_key):
+                                        st.session_state[_sk] = st.session_state[_nk]
+                                    def _bsl_x_ch(_sk=bsl_x_key, _nk=bni_x_key):
+                                        st.session_state[_nk] = st.session_state[_sk]
+                                    def _bsl_y_ch(_sk=bsl_y_key, _nk=bni_y_key):
+                                        st.session_state[_nk] = st.session_state[_sk]
+
+                                    # Row 1: number inputs (user can type exact pixel value)
+                                    bni_c1, bni_c2 = st.columns(2)
+                                    bni_c1.number_input(
+                                        f"X position ({lid})",
+                                        min_value=0, max_value=canvas_w,
+                                        step=1, key=bni_x_key, on_change=_bni_x_ch
+                                    )
+                                    bni_c2.number_input(
+                                        f"Y position ({lid})",
+                                        min_value=0, max_value=canvas_h,
+                                        step=1, key=bni_y_key, on_change=_bni_y_ch
+                                    )
+
+                                    # Row 2: sliders (user can drag)
+                                    bsl_c1, bsl_c2 = st.columns(2)
+                                    bsl_c1.slider(f"X ({lid})", 0, canvas_w, key=bsl_x_key,
+                                        label_visibility="collapsed", on_change=_bsl_x_ch)
+                                    bsl_c2.slider(f"Y ({lid})", 0, canvas_h, key=bsl_y_key,
+                                        label_visibility="collapsed", on_change=_bsl_y_ch)
                                     
                                     # If it's a text layer, render font styling overrides
                                     ltype = str(layer.get("type", "")).lower()
@@ -768,14 +992,9 @@ with tab_bulk:
                                 st.rerun()
 
                     elif res.status_code == 200 and body.get("status") == "ambiguous":
-                        st.warning("Which category did you mean?")
-                        for m in body.get("matches", []):
-                            if st.button(m["display_name"], key=f"bulk_cat_{m['folder']}"):
-                                st.session_state.bulk_selected_folder = m["folder"]
-                                st.rerun()
-                        if st.button("Cancel & start over", type="secondary", key="btn_ambig_cancel"):
-                            _reset_bulk()
-                            st.rerun()
+                        # Persist matches so buttons survive reruns
+                        st.session_state.bulk_pending_ambiguous_matches = body.get("matches", [])
+                        st.rerun()
 
                     elif res.status_code == 200 and body.get("status") == "gallery":
                         st.info(f"Select a design for **{body['display_name']}**:")

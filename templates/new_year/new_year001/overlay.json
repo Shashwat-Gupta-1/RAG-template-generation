@@ -1,5 +1,6 @@
 {
-  "template_id": "new_year",
+  "template_id": "new_year001",
+  "season_months": [12, 1],
   "description": "new year greeting poster, happy new year wishes, year celebration personalized with employee names",
   "type": "poster",
   "tags": [

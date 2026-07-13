@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     openrouter_model: str = Field(default="openai/gpt-4o-mini", validation_alias="OPENROUTER_MODEL")
     free_model: str = Field(default="openai/gpt-4o-mini", validation_alias="FREE_MODEL")
     rag_score_threshold: float = 0.55
-    ambiguity_gap: float = 0.08
+    ambiguity_gap: float = 0.15
     max_prompt_length: int = 500
     font_path: str = "fonts/NotoSans.ttf"
     templates_dir: str = "templates"

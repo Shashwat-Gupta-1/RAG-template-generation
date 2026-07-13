@@ -13,5 +13,9 @@
   ],
   "templates": [
     "holi001"
+  ],
+  "season_months": [
+    2,
+    3
   ]
 }

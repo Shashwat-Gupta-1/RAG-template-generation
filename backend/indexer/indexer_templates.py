@@ -40,6 +40,7 @@ def build_main_json(folder_path: str, folder_name: str) -> dict | None:
     all_descriptions = []
     all_tags = set()
     template_ids = []
+    season_months = None
 
     for item in sorted(os.listdir(folder_path)):
         item_path = os.path.join(folder_path, item)
@@ -55,6 +56,11 @@ def build_main_json(folder_path: str, folder_name: str) -> dict | None:
             all_descriptions.append(overlay["description"])
             all_tags.update(overlay.get("tags", []))
             template_ids.append(item)
+            
+            # If the template defines seasonality, capture it (use first template's setting as folder default)
+            if "season_months" in overlay and season_months is None:
+                season_months = overlay["season_months"]
+                
             print(f"    Read: {item}/overlay.json")
         except Exception as e:
             print(f"    ERROR in {item}: {e}")
@@ -73,12 +79,15 @@ def build_main_json(folder_path: str, folder_name: str) -> dict | None:
         "tags": sorted(list(all_tags)),
         "templates": sorted(template_ids)
     }
+    if season_months:
+        main["season_months"] = season_months
 
     main_path = os.path.join(folder_path, "main.json")
     with open(main_path, "w", encoding="utf-8") as f:
         json.dump(main, f, indent=2, ensure_ascii=False)
 
     return main
+
 
 def index_folder(folder_name: str, main: dict) -> None:
     collection = get_collection()
@@ -90,15 +99,21 @@ def index_folder(folder_name: str, main: dict) -> None:
         pass
 
     vector = embedder.encode(main["embed_text"]).tolist()
+    
+    metadata = {
+        "folder": folder_name,
+        "display_name": main["display_name"],
+        "template_count": len(main["templates"])
+    }
+    if "season_months" in main:
+        # chroma metadata only supports flat primitives, so serialize array as JSON string
+        metadata["season_months"] = json.dumps(main["season_months"])
+
     collection.add(
         ids=[folder_name],
         embeddings=[vector],
         documents=[json.dumps(main)],
-        metadatas=[{
-            "folder": folder_name,
-            "display_name": main["display_name"],
-            "template_count": len(main["templates"])
-        }]
+        metadatas=[metadata]
     )
     print(f"  Indexed: {folder_name} ({len(main['templates'])} template(s))")
 

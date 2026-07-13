@@ -196,16 +196,35 @@ def has_missing_required(overlay: Dict[str, Any], values: Dict[str, Any]) -> Lis
     return missing
 
 
-def build_field_values_single(template: Dict[str, Any], prompt: str, existing_values: Dict[str, Any] = None) -> tuple[Dict[str, Any], List[str]]:
-    """Compatibility helper for the single-poster route."""
+def build_field_values_single(
+    template: Dict[str, Any],
+    prompt: str,
+    existing_values: Dict[str, Any] = None,
+    caption_instruction: str = None,
+) -> tuple[Dict[str, Any], List[str]]:
+    """Compatibility helper for the single-poster route.
+
+    Args:
+        template: The overlay template dict.
+        prompt: The user's natural language prompt.
+        existing_values: Field values already known (from prior submissions or session state).
+            Any field with a real value here will NOT be sent to the LLM.
+        caption_instruction: Optional user-written prompt to override the template's
+            caption generation instruction. Used when the user clicks 'Regenerate Caption'.
+    """
     from backend.processing.llm import fill_values
 
     values = split_single(template, prompt)
     if existing_values:
         for k, v in existing_values.items():
             if v is not None and v != "":
-                values[k] = v
+                values[k] = v  # replaces sentinel with real value → LLM skips it
 
-    values = fill_values(template, values, prompt=prompt)
+    # Build per-field instruction overrides dict
+    field_instruction_overrides: Dict[str, str] = {}
+    if caption_instruction and "caption" in values:
+        field_instruction_overrides["caption"] = f"GENERATE — {caption_instruction}"
+
+    values = fill_values(template, values, prompt=prompt, field_instruction_overrides=field_instruction_overrides)
     missing = has_missing_required(template, values)
     return values, missing

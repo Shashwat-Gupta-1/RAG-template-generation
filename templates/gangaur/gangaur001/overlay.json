@@ -1,6 +1,7 @@
 {
-  "template_id": "gangaur",
-  "description": "Gangaur festival greeting poster - gauri puja shiva parvati clay idol spring chaitra Rajasthan worship colorful traditional personalized with employee names",
+  "template_id": "gangaur001",
+  "season_months": [3, 4],
+  "description": "Gangaur festival greeting poster - gauri puja shiva parvati clay idol spring chaitra Rajasthan worship colorful traditional personalized with employee names - women dressed up",
   "type": "poster",
   "tags": [
     "gangaur",
@@ -15,7 +16,15 @@
     "rajasthan",
     "rajasthani",
     "women",
-    "girls"
+    "girls",
+    "festival beauty",
+    "puja adornment",
+    "ladki",
+    "aurat",
+    "mahila",
+    "ladies",
+    "women festival",
+    "tyohar"
   ],
   "base_image": "templates/gangaur/gangaur001/template.png",
   "canvas": {
@@ -74,10 +83,10 @@
       "editable": true
     },
     {
-      "id": "greeting",
+      "id": "caption",
       "type": "text",
-      "placeholder": "{{greeting}}",
-      "instruction": "Describe greeting for the event",
+      "placeholder": "{{caption}}",
+      "instruction": "Describe caption for the event",
       "llm_can_invent": true,
       "box": {
         "x": 165,

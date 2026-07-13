@@ -13,5 +13,9 @@
   ],
   "templates": [
     "dussehra001"
+  ],
+  "season_months": [
+    9,
+    10
   ]
 }
