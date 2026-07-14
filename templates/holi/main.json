@@ -1,8 +1,20 @@
 {
   "folder": "holi",
   "display_name": "Holi",
-  "embed_text": "celebration colours festival greeting gulal holi rang spring celebration colours festival greeting gulal holi rang spring Modern Holi festival of colours greeting poster for MS Fincap employees and customers with personalized recipient name overlay celebrating spring celebration, colours, festival, greeting, gulal, holi, rang, spring",
+  "embed_text": "Colorful Diwali Festival GaneshChaturthi Holi Holifestival India IndianArt IndianCulture IndianFestivals Navratri SpringFestival celebration colours festival greeting gulal holi rang spring Colorful Diwali Festival GaneshChaturthi Holi Holifestival India IndianArt IndianCulture IndianFestivals Navratri SpringFestival celebration colours festival greeting gulal holi rang spring Modern Holi festival of colours greeting poster for MS Fincap employees and customers with personalized recipient name overlay celebrating spring Create a vibrant poster for the Holi festival, targeting Indian communities and enthusiasts worldwide.",
   "tags": [
+    "Colorful",
+    "Diwali",
+    "Festival",
+    "GaneshChaturthi",
+    "Holi",
+    "Holifestival",
+    "India",
+    "IndianArt",
+    "IndianCulture",
+    "IndianFestivals",
+    "Navratri",
+    "SpringFestival",
     "celebration",
     "colours",
     "festival",
@@ -13,6 +25,7 @@
     "spring"
   ],
   "templates": [
-    "holi001"
+    "holi001",
+    "holi02"
   ]
 }

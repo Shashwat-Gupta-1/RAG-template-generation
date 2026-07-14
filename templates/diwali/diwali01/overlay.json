@@ -1,0 +1,74 @@
+{
+  "template_id": "diwali01",
+  "description": "Diwali festival celebration poster for Indian communities, targeting children and families to promote cultural awareness.",
+  "type": "poster",
+  "tags": [
+    "Diwali",
+    "Divali",
+    "Deepavali",
+    "Festival of Lights",
+    "Indian festival",
+    "Hindu celebration",
+    "Naraka Chaturdashi",
+    "Lakshmi Puja",
+    "Diwali decorations",
+    "Rangoli designs",
+    "Indian culture",
+    "Festival of colors"
+  ],
+  "base_image": "templates/diwali/diwali01/template.png",
+  "canvas": {
+    "width": 768,
+    "height": 768
+  },
+  "overlay_layers": [
+    {
+      "id": "field_1",
+      "type": "text",
+      "placeholder": "{{field_1}}",
+      "instruction": "Enter value for field_1",
+      "llm_can_invent": false,
+      "box": {
+        "x": 189,
+        "y": 409,
+        "width": 457,
+        "height": 46
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_2",
+      "type": "text",
+      "placeholder": "{{field_2}}",
+      "instruction": "Enter value for field_2",
+      "llm_can_invent": false,
+      "box": {
+        "x": 272,
+        "y": 105,
+        "width": 221,
+        "height": 189
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

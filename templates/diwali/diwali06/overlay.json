@@ -1,0 +1,94 @@
+{
+  "template_id": "diwali06",
+  "description": "Diwali festival poster for Indian communities, celebrating light and joy, suitable for events and decorations.",
+  "type": "poster",
+  "tags": [
+    "diwali",
+    "festival",
+    "hindu",
+    "hinduism",
+    "hindu festival",
+    "deepavali",
+    "deepawali",
+    "diwali festival",
+    "hindu celebrations",
+    "light festival",
+    "hindu traditions",
+    "indian festival",
+    "hindu events"
+  ],
+  "base_image": "templates/diwali/diwali06/template.png",
+  "canvas": {
+    "width": 1152,
+    "height": 3664
+  },
+  "overlay_layers": [
+    {
+      "id": "field_1",
+      "type": "text",
+      "placeholder": "{{field_1}}",
+      "instruction": "Value for field_1",
+      "llm_can_invent": false,
+      "box": {
+        "x": 688,
+        "y": 361,
+        "width": 276,
+        "height": 276
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_2",
+      "type": "text",
+      "placeholder": "{{field_2}}",
+      "instruction": "Value for field_2",
+      "llm_can_invent": false,
+      "box": {
+        "x": 130,
+        "y": 1871,
+        "width": 474,
+        "height": 151
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_3",
+      "type": "image",
+      "placeholder": "{{field_3}}",
+      "instruction": "Value for field_3",
+      "llm_can_invent": false,
+      "box": {
+        "x": 146,
+        "y": 2212,
+        "width": 308,
+        "height": 273
+      },
+      "style": {
+        "shape": "circle",
+        "border_color": "#FFFFFF",
+        "border_width": 4
+      },
+      "editable": true
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "template_id": "diwali03",
+  "description": "Diwali festival celebration poster for Indian communities and cultural events, promoting unity and joy.",
+  "type": "poster",
+  "tags": [
+    "Diwali",
+    "Festival of Lights",
+    "Indian festival",
+    "Hindu celebration",
+    "Navratri",
+    "Dussehra",
+    "Lakshmi Puja",
+    "Diwali decorations",
+    "Indian culture",
+    "Community event",
+    "Cultural poster",
+    "Hindi festival",
+    "South Asian celebration"
+  ],
+  "base_image": "templates/diwali/diwali03/template.png",
+  "canvas": {
+    "width": 768,
+    "height": 768
+  },
+  "overlay_layers": [
+    {
+      "id": "field_1",
+      "type": "text",
+      "placeholder": "{{field_1}}",
+      "instruction": "Enter value for field_1",
+      "llm_can_invent": false,
+      "box": {
+        "x": 129,
+        "y": 236,
+        "width": 347,
+        "height": 167
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

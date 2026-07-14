@@ -1,0 +1,77 @@
+{
+  "template_id": "logoo",
+  "description": "A colorful logoo design for branding, suitable for Diwali, Holi, or Navratri festivals, targeting Indian audience.",
+  "type": "poster",
+  "tags": [
+    "logoo",
+    "diwali",
+    "holi",
+    "navratri",
+    "branding",
+    "indian",
+    "festival",
+    "diwali decorations",
+    "holi festival",
+    "navratri celebration",
+    "hindu",
+    "hindu festival",
+    "colorful",
+    "diwali logoo",
+    "holi logoo"
+  ],
+  "base_image": "templates/logoo/logoo/template.png",
+  "canvas": {
+    "width": 267,
+    "height": 240
+  },
+  "overlay_layers": [
+    {
+      "id": "field_1",
+      "type": "text",
+      "placeholder": "{{field_1}}",
+      "instruction": "Value for field_1",
+      "llm_can_invent": false,
+      "box": {
+        "x": 31,
+        "y": 57,
+        "width": 78,
+        "height": 88
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_2",
+      "type": "text",
+      "placeholder": "{{field_2}}",
+      "instruction": "Value for field_2",
+      "llm_can_invent": false,
+      "box": {
+        "x": 66,
+        "y": 163,
+        "width": 119,
+        "height": 71
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

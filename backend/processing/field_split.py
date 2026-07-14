@@ -1,6 +1,5 @@
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 RESERVED_FIELDS = {"emp_id"}
+
 
 def get_editable_text_fields(template: dict) -> list[dict]:
     return [
@@ -8,36 +7,77 @@ def get_editable_text_fields(template: dict) -> list[dict]:
         if f.get("editable") and f["type"] == "text"
     ]
 
-def validate_excel_structure(template: dict, excel_headers: list[str]) -> dict | None:
+
+def validate_excel_structure(
+    template: dict,
+    excel_headers: list[str]
+) -> dict | None:
+    """
+    Hard validation — no fuzzy matching, no LLM rescue for mismatches.
+    Returns error dict if any required column is missing or misnamed.
+    Returns None if all good.
+    """
     editable = get_editable_text_fields(template)
-    required = {f["id"] for f in editable} | RESERVED_FIELDS
-    header_lower = {h.lower(): h for h in excel_headers}
-    header_lower_set = set(header_lower.keys())
-    required_lower = {r.lower() for r in required}
+    required_ids = {f["id"] for f in editable if not f.get("llm_can_invent")}
+    required_ids.add("emp_id")
 
-    missing = [r for r in required if r.lower() not in header_lower_set]
-    unrecognized = [header_lower[h] for h in header_lower_set if h not in required_lower]
+    header_set = {h.lower().strip() for h in excel_headers}
+    required_lower = {r.lower() for r in required_ids}
 
-    if missing or unrecognized:
-        return {
-            "status": "column_mismatch",
-            "missing_required_columns": sorted(missing),
-            "unrecognized_columns_in_your_file": unrecognized,
-            "all_required_columns": sorted(required)
-        }
-    return None
-
-def build_field_values_single(template: dict, prompt: str) -> tuple[dict, list[str]]:
-    from processing.llm import fill_overlay_fields
-    editable = get_editable_text_fields(template)
-    fields_for_llm = [
-        {"id": f["id"], "instruction": f["instruction"], "llm_can_invent": f["llm_can_invent"]}
-        for f in editable
+    missing = [
+        r for r in required_ids
+        if r.lower() not in header_set
     ]
-    llm_result = fill_overlay_fields(prompt, fields_for_llm)
+
+    if not missing:
+        return None
+
+    return {
+        "status": "column_mismatch",
+        "missing_required_columns": sorted(missing),
+        "required_columns": sorted(required_ids),
+        "your_columns": sorted(excel_headers),
+        "message": (
+            f"Your Excel is missing these required columns: "
+            f"{', '.join(sorted(missing))}. "
+            f"Rename your columns to match exactly."
+        )
+    }
+
+
+def build_field_values_single(
+    template: dict,
+    prompt: str,
+    prefilled_values: dict = None
+) -> tuple[dict, list[str]]:
+    """
+    For single poster generation — LLM fills everything from prompt.
+    prefilled_values: from fallback form — used directly, skip LLM for these.
+    Returns (overlay_values, null_fields).
+    null_fields: field IDs where LLM returned null (llm_can_invent=False + no value in prompt).
+    """
+    from processing.llm import fill_overlay_fields
+    prefilled_values = prefilled_values or {}
+    editable = get_editable_text_fields(template)
+
+    fields_for_llm = [
+        {
+            "id": f["id"],
+            "instruction": f["instruction"],
+            "llm_can_invent": f["llm_can_invent"]
+        }
+        for f in editable
+        if f["id"] not in prefilled_values
+    ]
+
+    llm_result = fill_overlay_fields(
+        prompt, fields_for_llm, prefilled_values
+    )
+
     valid_ids = {f["id"] for f in editable}
-    overlay_values = {}
+    overlay_values = dict(prefilled_values)
     null_fields = []
+
     for fid, val in llm_result.items():
         if fid not in valid_ids:
             continue
@@ -45,25 +85,37 @@ def build_field_values_single(template: dict, prompt: str) -> tuple[dict, list[s
             null_fields.append(fid)
         else:
             overlay_values[fid] = str(val)
+
     return overlay_values, null_fields
+
 
 def build_field_values_bulk_row(
     template: dict,
     prompt: str,
     row_data: dict
 ) -> tuple[dict | None, list[dict]]:
+    """
+    For bulk generation — strict Excel-based filling.
+    Identity fields (llm_can_invent=False): must come from Excel — error if blank.
+    Creative fields (llm_can_invent=True): generate with LLM if Excel column absent.
+    Returns (overlay_values, skip_reasons).
+    If skip_reasons is non-empty, overlay_values is None — this row is skipped.
+    """
     from processing.llm import fill_overlay_fields
     editable = get_editable_text_fields(template)
-    row_lower = {k.lower(): k for k in row_data.keys()}
+    row_lower = {k.lower().strip(): v for k, v in row_data.items()}
+
     overlay_values = {}
     skip_reasons = []
     fields_for_llm = []
 
     for field in editable:
         fid = field["id"]
-        actual_col = row_lower.get(fid.lower())
-        value = row_data.get(actual_col) if actual_col else None
-        is_blank = value is None or str(value).strip() in ("", "nan", "None")
+        value = row_lower.get(fid.lower())
+        is_blank = (
+            value is None
+            or str(value).strip() in ("", "nan", "None", "NaN")
+        )
 
         if not is_blank:
             overlay_values[fid] = str(value).strip()
@@ -76,7 +128,10 @@ def build_field_values_bulk_row(
         else:
             skip_reasons.append({
                 "field_id": fid,
-                "reason": f"Value is blank and llm_can_invent is false for '{fid}'"
+                "reason": (
+                    f"Column '{fid}' is blank for this row. "
+                    f"llm_can_invent is false — cannot auto-fill."
+                )
             })
 
     if skip_reasons:

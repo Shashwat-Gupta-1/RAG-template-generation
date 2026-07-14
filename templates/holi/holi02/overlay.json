@@ -1,0 +1,74 @@
+{
+  "template_id": "holi02",
+  "description": "Create a vibrant poster for the Holi festival, targeting Indian communities and enthusiasts worldwide.",
+  "type": "poster",
+  "tags": [
+    "Holi",
+    "Festival",
+    "India",
+    "Colorful",
+    "IndianFestivals",
+    "Holifestival",
+    "SpringFestival",
+    "IndianCulture",
+    "Diwali",
+    "Navratri",
+    "GaneshChaturthi",
+    "IndianArt"
+  ],
+  "base_image": "templates/holi/holi02/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1536
+  },
+  "overlay_layers": [
+    {
+      "id": "field_1",
+      "type": "text",
+      "placeholder": "{{field_1}}",
+      "instruction": "Value for field_1",
+      "llm_can_invent": false,
+      "box": {
+        "x": 245,
+        "y": 357,
+        "width": 565,
+        "height": 209
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_2",
+      "type": "text",
+      "placeholder": "{{field_2}}",
+      "instruction": "Value for field_2",
+      "llm_can_invent": false,
+      "box": {
+        "x": 280,
+        "y": 863,
+        "width": 635,
+        "height": 346
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "template_id": "diwali04",
+  "description": "Diwali festival of lights celebration poster for Hindu community, Lakshmi Pooja, Indian culture.",
+  "type": "poster",
+  "tags": [
+    "Diwali",
+    "FestivalOfLights",
+    "LakshmiPooja",
+    "Hindu",
+    "IndianCulture",
+    "DiwaliFestival",
+    "LightingOfLamps",
+    "Puja",
+    "HinduPuja",
+    "Diyas",
+    "DiwaliDecorations",
+    "LakshmiPujaPics"
+  ],
+  "base_image": "templates/diwali/diwali04/template.png",
+  "canvas": {
+    "width": 1152,
+    "height": 3664
+  },
+  "overlay_layers": [
+    {
+      "id": "field_1",
+      "type": "text",
+      "placeholder": "{{field_1}}",
+      "instruction": "Value for field_1",
+      "llm_can_invent": false,
+      "box": {
+        "x": 163,
+        "y": 1878,
+        "width": 442,
+        "height": 132
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#2438c1",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_2",
+      "type": "image",
+      "placeholder": "{{field_2}}",
+      "instruction": "Value for field_2",
+      "llm_can_invent": false,
+      "box": {
+        "x": 142,
+        "y": 2251,
+        "width": 293,
+        "height": 232
+      },
+      "style": {
+        "shape": "circle",
+        "border_color": "#FFFFFF",
+        "border_width": 4
+      },
+      "editable": true
+    }
+  ]
+}
