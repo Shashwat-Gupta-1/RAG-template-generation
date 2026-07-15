@@ -1,0 +1,50 @@
+{
+  "template_id": "teej003",
+  "description": "A vibrant celebration of Teej, honoring women's empowerment and traditional customs, perfect for family gatherings and festive decorations.",
+  "type": "poster",
+  "tags": [
+    "teej",
+    "teej festival",
+    "Haryali Teej",
+    "women's festival",
+    "festive decor",
+    "Indian traditions",
+    "teej celebration",
+    "monsoon festival",
+    "Rajasthan Teej",
+    "teej ka tyohar",
+    "Teej 2023",
+    "Hindu festival"
+  ],
+  "base_image": "templates/teej/teej003/template.png",
+  "canvas": {
+    "width": 848,
+    "height": 1264
+  },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Value for name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 298,
+        "y": 971,
+        "width": 271,
+        "height": 44
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

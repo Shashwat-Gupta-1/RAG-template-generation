@@ -1,11 +1,17 @@
 {
   "folder": "teej",
   "display_name": "Teej",
-  "embed_text": "teej teej aurat bangles festival beauty girls green hariyali teej ladies ladki mahila mehendi monsoon puja adornment rajasthan rajasthani sawan swing teej tyohar women women festival",
+  "embed_text": "teej teej Haryali Teej Hindu festival Indian traditions Rajasthan Teej Teej 2023 aurat bangles festival beauty festive decor girls green hariyali teej ladies ladki mahila mehendi monsoon monsoon festival puja adornment rajasthan rajasthani sawan swing teej teej celebration teej festival teej ka tyohar tyohar women women festival women's festival",
   "tags": [
+    "Haryali Teej",
+    "Hindu festival",
+    "Indian traditions",
+    "Rajasthan Teej",
+    "Teej 2023",
     "aurat",
     "bangles",
     "festival beauty",
+    "festive decor",
     "girls",
     "green",
     "hariyali teej",
@@ -14,19 +20,25 @@
     "mahila",
     "mehendi",
     "monsoon",
+    "monsoon festival",
     "puja adornment",
     "rajasthan",
     "rajasthani",
     "sawan",
     "swing",
     "teej",
+    "teej celebration",
+    "teej festival",
+    "teej ka tyohar",
     "tyohar",
     "women",
-    "women festival"
+    "women festival",
+    "women's festival"
   ],
   "templates": [
     "teej001",
-    "teej002"
+    "teej002",
+    "teej003"
   ],
   "season_months": [
     7,

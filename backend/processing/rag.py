@@ -268,9 +268,10 @@ Available folders and their tags:
 Rules:
 1. Return ONLY a space-separated string of words. No JSON, no explanation, no punctuation.
 2. Start by repeating the matched folder name(s) twice each (e.g. 'teej teej'). If the query matches multiple folders (e.g., 'rajasthan's festival' matches both 'teej' and 'gangaur'), repeat BOTH folder names twice (e.g., 'teej teej gangaur gangaur').
-3. You may include highly relevant contextual terms, synonyms, or associated concepts (e.g. 'festival', 'celebration', 'women', 'rajasthan', 'finance') to help semantic matching.
-4. If the query is broad or matches multiple folders, do NOT return 'unknown'. Generate tags and repeat the folder names for all related folders.
-5. IMPORTANT: If the user mentions 'upcoming', 'next', 'latest', 'coming', or 'soon', use today's date and the festival calendar above to ONLY match festivals that have NOT yet passed this year. Skip any festival whose season has already passed relative to today's date.
+3. Special Case: Teej and Gangaur are both traditional Rajasthani festivals for women. If the user asks for a 'women's festival', 'beauty festival', 'festival of swings', 'puja/worship festival for women', or similar broad Rajasthani cultural terms without naming a specific one, it matches BOTH. You MUST repeat both folder names: 'teej teej gangaur gangaur'.
+4. You may include highly relevant contextual terms, synonyms, or associated concepts (e.g. 'festival', 'celebration', 'women', 'rajasthan', 'finance') to help semantic matching.
+5. If the query is broad or matches multiple folders, do NOT return 'unknown'. Generate tags and repeat the folder names for all related folders.
+6. IMPORTANT: If the user mentions 'upcoming', 'next', 'latest', 'coming', or 'soon', use today's date and the festival calendar above to ONLY match festivals that have NOT yet passed this year. Skip any festival whose season has already passed relative to today's date.
 
 Example output: holi holi festival colours gulal spring celebration greeting
 Example output: hiring hiring job recruitment college campus fresher placement
@@ -334,10 +335,26 @@ def search_by_tags(tags_string: str, top_k: int = 3) -> list[dict]:
 
     # Boost folders that the LLM explicitly repeated twice in the tag string (e.g. "teej teej")
     words = tags_string.lower().replace(",", " ").split()
+    boosted_folders = []
     for m in matches:
         folder_name = m["folder"].lower()
         if words.count(folder_name) >= 2:
-            m["score"] = 0.95
+            boosted_folders.append(m["folder"])
+
+    if len(boosted_folders) == 1:
+        # Only one folder was explicitly selected by the LLM.
+        # Make it the absolute winner by boosting its score to 1.0 and setting others to 0.0.
+        for m in matches:
+            if m["folder"] == boosted_folders[0]:
+                m["score"] = 1.0
+            else:
+                m["score"] = 0.0
+    elif len(boosted_folders) > 1:
+        # Multiple folders were explicitly selected by the LLM.
+        # Boost all of them to 0.95 so they remain ambiguous.
+        for m in matches:
+            if m["folder"] in boosted_folders:
+                m["score"] = 0.95
 
     matches.sort(key=lambda x: x["score"], reverse=True)
     above = [m for m in matches if m["score"] >= settings.rag_score_threshold]

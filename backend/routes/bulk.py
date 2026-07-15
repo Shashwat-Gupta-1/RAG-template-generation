@@ -402,22 +402,28 @@ async def bulk_preview(
                 m for m in matches
                 if best_score - m["score"] < settings.ambiguity_gap
             ]
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "status": "ambiguous",
-                    "matches": [
-                        {
-                            "folder": m["folder"],
-                            "display_name": m["display_name"],
-                            "score": m["score"],
-                        }
-                        for m in ambiguous_matches
-                    ],
-                }
-            )
+            # Check if the user explicitly mentioned exactly one of the folder names in the query
+            mentioned = [m for m in ambiguous_matches if m["folder"].lower() in prompt.lower()]
+            if len(mentioned) == 1:
+                best = mentioned[0]
+            else:
+                return JSONResponse(
+                    status_code=200,
+                    content={
+                        "status": "ambiguous",
+                        "matches": [
+                            {
+                                "folder": m["folder"],
+                                "display_name": m["display_name"],
+                                "score": m["score"],
+                            }
+                            for m in ambiguous_matches
+                        ],
+                    }
+                )
+        else:
+            best = matches[0]
 
-        best = matches[0]
         best_folder = best["folder"]
         all_templates = load_all_templates_in_folder(best_folder)
         if not all_templates:

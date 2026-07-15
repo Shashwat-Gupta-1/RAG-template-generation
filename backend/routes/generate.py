@@ -191,19 +191,25 @@ async def generate(
                     m for m in matches
                     if best_score - m["score"] < settings.ambiguity_gap
                 ]
-                return {
-                    "status": "ambiguous",
-                    "matches": [
-                        {
-                            "folder": m["folder"],
-                            "display_name": m["display_name"],
-                            "score": m["score"],
-                        }
-                        for m in ambiguous_matches
-                    ],
-                }
+                # Check if the user explicitly mentioned exactly one of the folder names in the query
+                mentioned = [m for m in ambiguous_matches if m["folder"].lower() in prompt.lower()]
+                if len(mentioned) == 1:
+                    best = mentioned[0]
+                else:
+                    return {
+                        "status": "ambiguous",
+                        "matches": [
+                            {
+                                "folder": m["folder"],
+                                "display_name": m["display_name"],
+                                "score": m["score"],
+                            }
+                            for m in ambiguous_matches
+                        ],
+                    }
+            else:
+                best = matches[0]
 
-            best = matches[0]
             folder = best["folder"]
 
             if len(best["templates"]) == 1:

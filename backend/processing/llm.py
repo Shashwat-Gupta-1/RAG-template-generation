@@ -221,3 +221,61 @@ def fill_invent_fields_only(
             temp_values[fid] = ""  # treat as filled
 
     return fill_values(overlay, temp_values, prompt=context)
+
+
+def generate_tags_and_description(
+    category: str,
+    field_ids: List[str],
+    field_instructions: List[str],
+    user_hint: str = ""
+) -> Dict[str, Any]:
+    """
+    Called once at save time to enrich template metadata for RAG.
+    Returns {"description": "...", "tags": [...]}
+    """
+    prompt = f"""You are indexing a visual poster template into a search database.
+
+Category: {category}
+Fields: {', '.join(field_ids)}
+Field instructions: {'; '.join(field_instructions)}
+User hint: "{user_hint}"
+
+Write:
+1. A rich description of 15-20 words covering occasion, audience, and purpose
+2. A list of 8-12 search tags — single words or short phrases
+
+Rules:
+- Tags must be specific. Include synonyms, Hindi equivalents, alternate spellings.
+- Include the category name and related festival or event names.
+- Never use generic words like "template" or "poster" as tags.
+- Return ONLY valid JSON: {{"description": "...", "tags": [...]}}"""
+
+    from backend.validation.logging_config import get_logger
+    logger = get_logger("LLM.MetadataGenerator")
+    logger.info(f"generate_tags_and_description: category={category!r}")
+
+    system_prompt = "Return ONLY valid JSON. No markdown, no explanation."
+
+    for attempt in range(3):
+        try:
+            # Uses the robust, built-in network caller and JSON parser in llm.py
+            raw = _call_llm(system_prompt, prompt)
+            result = _parse_json(raw)
+            if "description" in result and "tags" in result:
+                return result
+        except Exception as e:
+            logger.warning(
+                f"generate_tags_and_description: attempt {attempt + 1}/3 failed: {e}"
+            )
+            time.sleep(1)
+
+    logger.warning(
+        "generate_tags_and_description: falling back to generic description/tags."
+    )
+    return {
+        "description": (
+            f"{category} themed visual template with "
+            f"{', '.join(field_ids)} overlay field"
+        ),
+        "tags": [category, "greeting", "festival"]
+    }

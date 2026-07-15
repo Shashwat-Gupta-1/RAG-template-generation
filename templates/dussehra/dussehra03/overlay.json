@@ -1,0 +1,50 @@
+{
+  "template_id": "dussehra03",
+  "description": "Celebrate Dussehra with heartfelt wishes for Diwali, sharing joy and positivity among family and friends.",
+  "type": "poster",
+  "tags": [
+    "dussehra",
+    "diwali",
+    "dussehra wishes",
+    "festival",
+    "celebration",
+    "celebrations",
+    "दशहरा",
+    "दीपावली",
+    "नवरात्रि",
+    "festive",
+    "joy",
+    "poshan"
+  ],
+  "base_image": "templates/dussehra/dussehra03/template.png",
+  "canvas": {
+    "width": 768,
+    "height": 768
+  },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "name of the person to wish diwali",
+      "llm_can_invent": false,
+      "box": {
+        "x": 81,
+        "y": 596,
+        "width": 195,
+        "height": 66
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}
