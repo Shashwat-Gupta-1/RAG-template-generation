@@ -1,0 +1,17 @@
+{
+  "folder": "new_year",
+  "display_name": "New Year",
+  "embed_text": "new_year new_year new beginnings new year resolutions",
+  "tags": [
+    "new beginnings",
+    "new year",
+    "resolutions"
+  ],
+  "templates": [
+    "new_year001"
+  ],
+  "season_months": [
+    12,
+    1
+  ]
+}

@@ -1,14 +1,15 @@
 {
   "template_id": "hiring",
-  "description": "hiring poster for colleges, - personalized with college names",
+  "description": "hiring announcement poster for new employee joining MS Fincap, job recruitment, staff onboarding, welcome new joiner personalized with name and designation",
   "type": "poster",
   "tags": [
     "hiring",
     "colleges",
     "students",
+    "internships",
     "jobs"
   ],
-  "base_image": "templates/hiring/template.png",
+  "base_image": "templates/hiring/hiring001/template.png",
   "canvas": {
     "width": 848,
     "height": 1264

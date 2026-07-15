@@ -1,21 +1,27 @@
 {
-  "template_id": "msfincap_eid",
-  "description": "eid festival greeting poster ",
+  "template_id": "eid001",
+  "description": "Eid Mubarak greeting poster - eid ul fitr ramadan fasting end moon sighting mosque islamic celebration personalized with names",
   "type": "poster",
   "tags": [
     "eid",
-    "festival"
+    "eid mubarak",
+    "eid ul fitr",
+    "ramadan",
+    "fasting",
+    "moon sighting",
+    "mosque",
+    "islamic"
   ],
-  "base_image": "templates/eid001/msfc eid.png",
+  "base_image": "templates/eid/eid001/template.png",
   "canvas": {
     "width": 1696,
     "height": 2528
   },
   "overlay_layers": [
     {
-      "id": "text_field_1",
+      "id": "name",
       "type": "text",
-      "placeholder": "{{text_field_1}}",
+      "placeholder": "{{name}}",
       "instruction": "name of the person ",
       "llm_can_invent": false,
       "box": {

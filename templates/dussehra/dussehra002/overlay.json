@@ -1,0 +1,50 @@
+{
+  "template_id": "dussehra002",
+  "description": "Dussehra celebrates the triumph of good over evil, symbolized by Rawan Dahan, engaging families and communities in joyous festivities.",
+  "type": "poster",
+  "tags": [
+    "Dussehra",
+    "Vijayadashami",
+    "Rawan Dahan",
+    "goodness",
+    "celebration",
+    "victory",
+    "ravana",
+    "navratri",
+    "festivals",
+    "Hindi",
+    "evil",
+    "symbolism"
+  ],
+  "base_image": "templates/dussehra/dussehra002/template.png",
+  "canvas": {
+    "width": 1696,
+    "height": 2528
+  },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Value for name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 586,
+        "y": 1959,
+        "width": 584,
+        "height": 77
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#c92424",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

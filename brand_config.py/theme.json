@@ -1,0 +1,237 @@
+{
+  "company": {
+    "name": "MS Fincap Pvt. Ltd.",
+    "industry": "NBFC",
+    "tagline": "Your Financial Navigator",
+    "website": "https://www.msfincap.com",
+    "description": "A trusted NBFC providing Loan Against Property, Business Loans, Construction Finance and other financial solutions."
+  },
+
+  "brand_identity": {
+    "personality": [
+      "Professional",
+      "Trustworthy",
+      "Premium",
+      "Reliable",
+      "Customer Friendly",
+      "Modern"
+    ],
+
+    "tone": [
+      "Corporate",
+      "Elegant",
+      "Minimal",
+      "Positive",
+      "Clean"
+    ],
+
+    "avoid": [
+      "Funny",
+      "Comic",
+      "Childish",
+      "Horror",
+      "Dark Gothic",
+      "Violent",
+      "Political",
+      "Religious Extremism"
+    ]
+  },
+
+  "colors": {
+    "primary": "#D21414",
+    "secondary": "#1A1A2E",
+    "background": "#FFFFFF",
+    "surface": "#F7F7F7",
+    "text_dark": "#1F2937",
+    "text_light": "#FFFFFF",
+
+    "festival_override_allowed": true,
+    "preserve_brand_identity": true
+  },
+
+  "logo": {
+    "enabled": true,
+    "path": "brand_config/logo.png",
+    "position": "top-right",
+    "padding": 30,
+    "size": "small",
+
+    "allow_rotation": false,
+    "allow_recolor": false,
+    "allow_crop": false,
+
+    "keep_clear_space": true
+  },
+
+  "mascot": {
+    "enabled": true,
+
+    "path": "brand_config/mascot.png",
+
+    "description": "Friendly Indian financial advisor mascot wearing a red turban and white traditional attire.",
+
+    "allowed_positions": [
+      "bottom-right",
+      "bottom-left"
+    ],
+
+    "maximum_canvas_coverage_percent": 20,
+
+    "allow_flip": false,
+    "allow_crop": false,
+    "allow_rotation": false,
+
+    "use_when": [
+      "Festival Posters",
+      "Customer Greeting",
+      "Financial Awareness",
+      "Marketing Campaign",
+      "Social Media"
+    ],
+
+    "avoid_when": [
+      "Official Notices",
+      "Legal Documents",
+      "Interest Rate Charts",
+      "Technical Posters"
+    ]
+  },
+
+  "design_rules": {
+    "preferred_style": [
+      "Modern",
+      "Flat Design",
+      "Vector Illustration",
+      "Corporate",
+      "Premium",
+      "Minimal"
+    ],
+
+    "preferred_layout": [
+      "Balanced Composition",
+      "Good White Space",
+      "Strong Visual Hierarchy",
+      "Clean Alignment"
+    ],
+
+    "lighting": [
+      "Soft",
+      "Professional",
+      "Premium"
+    ],
+
+    "background_style": [
+      "Minimal",
+      "Subtle Gradient",
+      "Corporate Pattern",
+      "Soft Abstract Shapes"
+    ]
+  },
+
+  "placeholders": {
+    "text": {
+      "style": "blank rounded rectangle",
+      "generate_placeholder_text": false
+    },
+
+    "photo": {
+      "style": "blank circular frame"
+    },
+
+    "logo": {
+      "style": "reserved logo area"
+    }
+  },
+
+  "canvas": {
+    "default": "1080x1080",
+
+    "supported": [
+      "1080x1080",
+      "1080x1350",
+      "1080x1920",
+      "1920x1080"
+    ]
+  },
+
+  "festival_rules": {
+    "allow_festival_colors": true,
+
+    "supported": [
+      "Holi",
+      "Diwali",
+      "Dussehra",
+      "Raksha Bandhan",
+      "Navratri",
+      "Ganesh Chaturthi",
+      "Janmashtami",
+      "Guru Nanak Jayanti",
+      "Christmas",
+      "New Year",
+      "Republic Day",
+      "Independence Day",
+      "Eid"
+    ],
+
+    "keep_logo_visible": true,
+
+    "keep_brand_colors_present": true
+  },
+
+  "image_generation": {
+    "provider": "pollinations",
+
+    "model": "flux",
+
+    "always_include": [
+      "Professional",
+      "High Quality",
+      "Flat Design",
+      "Vector Illustration",
+      "Corporate Style",
+      "Balanced Composition",
+      "Modern Design",
+      "High Resolution",
+      "Minimal"
+    ],
+
+    "negative_prompt": [
+      "text",
+      "letters",
+      "numbers",
+      "typography",
+      "watermark",
+      "logo",
+      "signature",
+      "QR code",
+      "low quality",
+      "blurry",
+      "cropped",
+      "distorted",
+      "extra limbs",
+      "pixelated"
+    ]
+  },
+
+  "creation_agent": {
+    "conversation_style": "Professional and Friendly",
+
+    "ask_one_question_at_a_time": true,
+
+    "required_fields": [
+      "occasion",
+      "purpose",
+      "colour_palette",
+      "style",
+      "placeholders"
+    ],
+
+    "optional_fields": [
+      "audience",
+      "photo_requirement",
+      "branding",
+      "canvas_size",
+      "additional_instructions"
+    ]
+  }
+}

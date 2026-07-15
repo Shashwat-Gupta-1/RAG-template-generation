@@ -1,43 +1,19 @@
 {
-  "template_id": "lead_generation",
-  "description": "lead generation for loans - personalized with shopkeeper names and qr codes",
+  "template_id": "new_year001",
+  "season_months": [12, 1],
+  "description": "new year greeting poster, happy new year wishes, year celebration personalized with employee names",
   "type": "poster",
   "tags": [
-    "lead generation",
-    "loans",
-    "local vendors"
+    "new year",
+    "resolutions",
+    "new beginnings"
   ],
-  "base_image": "templates/lead_generation/template.png",
+  "base_image": "templates/new_year/new_year001/template.png",
   "canvas": {
-    "width": 1024,
-    "height": 1536
+    "width": 1587,
+    "height": 2245
   },
   "overlay_layers": [
-    {
-      "id": "pattern",
-      "type": "image",
-      "placeholder": "{{pattern}}",
-      "instruction": "qr code on poster",
-      "llm_can_invent": true,
-      "box": {
-        "x": 220,
-        "y": 1029,
-        "width": 150,
-        "height": 120
-      },
-      "style": {
-        "font_family": "Poppins",
-        "font_size": 48,
-        "font_size_min": 20,
-        "font_weight": "bold",
-        "font_style": "normal",
-        "color": "#FFFFFF",
-        "align": "center",
-        "vertical_align": "middle",
-        "letter_spacing": 0
-      },
-      "editable": true
-    },
     {
       "id": "heading",
       "type": "text",
@@ -45,10 +21,10 @@
       "instruction": "Describe event",
       "llm_can_invent": false,
       "box": {
-        "x": 173,
-        "y": 272,
-        "width": 738,
-        "height": 155
+        "x": 456,
+        "y": 741,
+        "width": 743,
+        "height": 318
       },
       "style": {
         "font_family": "Poppins",
@@ -70,10 +46,10 @@
       "instruction": "Describe caption for the event",
       "llm_can_invent": true,
       "box": {
-        "x": 161,
-        "y": 449,
-        "width": 750,
-        "height": 143
+        "x": 440,
+        "y": 1106,
+        "width": 767,
+        "height": 107
       },
       "style": {
         "font_family": "Poppins",
@@ -92,13 +68,13 @@
       "id": "name",
       "type": "text",
       "placeholder": "{{name}}",
-      "instruction": "Describe vendor name",
+      "instruction": "Describe name",
       "llm_can_invent": false,
       "box": {
-        "x": 564,
-        "y": 969,
-        "width": 379,
-        "height": 48
+        "x": 530,
+        "y": 1234,
+        "width": 535,
+        "height": 88
       },
       "style": {
         "font_family": "Poppins",

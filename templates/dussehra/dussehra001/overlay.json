@@ -1,12 +1,18 @@
 {
-  "template_id": "msfincap_dussehra",
-  "description": "dussehra festival greeting poster containing name overlay",
+  "template_id": "dussehra001",
+  "season_months": [9, 10],
+  "description": "Dussehra festival greeting poster - ravana dahan ram victory effigy burning dashami navratri end evil over good personalized with names",
   "type": "poster",
   "tags": [
     "dussehra",
-    "festival"
+    "dashami",
+    "ravana dahan",
+    "ram",
+    "victory of good over evil",
+    "effigy burning",
+    "navratri end"
   ],
-  "base_image": "templates/dussehra001/msfc dussehra.png",
+  "base_image": "templates/dussehra/dussehra001/template.png",
   "canvas": {
     "width": 1696,
     "height": 2528

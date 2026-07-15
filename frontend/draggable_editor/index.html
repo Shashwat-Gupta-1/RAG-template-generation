@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #editor-container {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+    }
+    #poster-image {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      pointer-events: none;
+    }
+    .draggable-box {
+      position: absolute;
+      border: 2px dashed #ff4b4b;
+      background-color: rgba(255, 75, 75, 0.15);
+      color: #ff4b4b;
+      cursor: move;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: bold;
+      text-shadow: 0 0 2px white;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+    .draggable-box:hover {
+      border-color: #ff1f1f;
+      background-color: rgba(255, 75, 75, 0.3);
+      z-index: 1000;
+    }
+    .draggable-label {
+      background: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #ff4b4b;
+      pointer-events: none;
+      white-space: nowrap;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="editor-container">
+    <img id="poster-image" src="" alt="Poster Preview">
+    <!-- Draggable boxes will be dynamically inserted here -->
+  </div>
+
+  <script>
+    let canvasWidth = 1024;
+    let canvasHeight = 1536;
+    let layers = [];
+    let scale = 1.0;
+
+    const container = document.getElementById('editor-container');
+    const image = document.getElementById('poster-image');
+
+    // Notify Streamlit of new coordinates
+    function sendNewCoords(updatedLayers) {
+      const value = {};
+      updatedLayers.forEach(l => {
+        value[l.id] = {
+          x: Math.round(l.box.x),
+          y: Math.round(l.box.y),
+          width: Math.round(l.box.width),
+          height: Math.round(l.box.height)
+        };
+      });
+
+      window.parent.postMessage({
+        type: "streamlit:setComponentValue",
+        value: value,
+        apiVersion: 1
+      }, "*");
+    }
+
+    // Set iframe height to match content
+    function updateHeight() {
+      const height = container.offsetHeight;
+      window.parent.postMessage({
+        type: "streamlit:setFrameHeight",
+        height: height + 10,
+        apiVersion: 1
+      }, "*");
+    }
+
+    // Render / update positions
+    function render() {
+      if (!image.src) return;
+      
+      // Calculate scale based on displayed image size vs template canvas size
+      scale = image.clientWidth / canvasWidth;
+      if (scale === 0) {
+        // Image might not be fully loaded/rendered yet, retry shortly
+        setTimeout(render, 50);
+        return;
+      }
+
+      // Remove existing boxes
+      const boxes = container.querySelectorAll('.draggable-box');
+      boxes.forEach(b => b.remove());
+
+      // Create new boxes
+      layers.forEach(layer => {
+        // Only show editable text/image fields
+        if (!layer.box) return;
+
+        const box = document.createElement('div');
+        box.className = 'draggable-box';
+        box.id = 'box-' + layer.id;
+        
+        // Position relative to scaled image
+        box.style.left = (layer.box.x * scale) + 'px';
+        box.style.top = (layer.box.y * scale) + 'px';
+        box.style.width = (layer.box.width * scale) + 'px';
+        box.style.height = (layer.box.height * scale) + 'px';
+
+        const label = document.createElement('span');
+        label.className = 'draggable-label';
+        label.innerText = layer.id;
+        box.appendChild(label);
+
+        // Drag handlers
+        let isDragging = false;
+        let startX, startY;
+        let origX, origY;
+
+        function onMouseDown(e) {
+          isDragging = true;
+          startX = e.clientX || (e.touches && e.touches[0].clientX);
+          startY = e.clientY || (e.touches && e.touches[0].clientY);
+          origX = layer.box.x;
+          origY = layer.box.y;
+          
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+          document.addEventListener('touchmove', onMouseMove, { passive: false });
+          document.addEventListener('touchend', onMouseUp);
+          
+          if (e.cancelable) e.preventDefault();
+        }
+
+        function onMouseMove(e) {
+          if (!isDragging) return;
+          const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+          const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+          
+          const dx = (clientX - startX) / scale;
+          const dy = (clientY - startY) / scale;
+
+          // Update position in template coordinates
+          let newX = origX + dx;
+          let newY = origY + dy;
+
+          // Keep within canvas bounds
+          newX = Math.max(0, Math.min(canvasWidth - layer.box.width, newX));
+          newY = Math.max(0, Math.min(canvasHeight - layer.box.height, newY));
+
+          layer.box.x = newX;
+          layer.box.y = newY;
+
+          // Update visual position
+          box.style.left = (newX * scale) + 'px';
+          box.style.top = (newY * scale) + 'px';
+          
+          if (e.cancelable) e.preventDefault();
+        }
+
+        function onMouseUp(e) {
+          if (isDragging) {
+            isDragging = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.removeEventListener('touchmove', onMouseMove);
+            document.removeEventListener('touchend', onMouseUp);
+            
+            // Send new coordinates back to Streamlit
+            sendNewCoords(layers);
+          }
+        }
+
+        box.addEventListener('mousedown', onMouseDown);
+        box.addEventListener('touchstart', onMouseDown, { passive: false });
+
+        container.appendChild(box);
+      });
+
+      updateHeight();
+    }
+
+    // Handle render messages from Streamlit
+    window.addEventListener("message", (event) => {
+      const msg = event.data;
+      if (msg && msg.type === "streamlit:render") {
+        const args = msg.args;
+        if (args.canvas_width) {
+          canvasWidth = args.canvas_width;
+        }
+        if (args.canvas_height) {
+          canvasHeight = args.canvas_height;
+        }
+        if (args.layers) {
+          // Deep copy layers to allow editing box positions
+          layers = JSON.parse(JSON.stringify(args.layers));
+        }
+        
+        // Define onload BEFORE setting src to prevent missing the event for cached/data URLs
+        image.onload = () => {
+          render();
+        };
+        
+        if (args.image_src) {
+          image.src = args.image_src;
+        }
+        
+        // Trigger render immediately as well in case image is already cached/loaded
+        render();
+      }
+    });
+
+    // Resize listener to re-scale when browser window resizes
+    window.addEventListener('resize', render);
+
+    // Signal Streamlit that we are ready
+    window.parent.postMessage({
+      type: "streamlit:componentReady",
+      apiVersion: 1
+    }, "*");
+  </script>
+</body>
+</html>

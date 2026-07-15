@@ -1,12 +1,31 @@
 {
-  "template_id": "teej",
-  "description": "teej greeting poster - personalized with employee names ",
+  "template_id": "teej001",
+  "season_months": [7, 8],
+  "description": "Teej festival greeting poster - hariyali teej sawan monsoon swing women green bangles mehendi personalized with employee names, women dressed up",
   "type": "poster",
   "tags": [
-    "Teej",
-    "Rajasthan's festival"
+    "teej",
+    "hariyali teej",
+    "sawan",
+    "monsoon",
+    "swing",
+    "green",
+    "mehendi",
+    "bangles",
+    "women",
+    "festival beauty",
+    "puja adornment",
+    "rajasthan",
+    "rajasthani",
+    "girls",
+    "ladki",
+    "aurat",
+    "mahila",
+    "ladies",
+    "women festival",
+    "tyohar"
   ],
-  "base_image": "templates/teej/template.png",
+  "base_image": "templates/teej/teej001/template.png",
   "canvas": {
     "width": 848,
     "height": 1264

@@ -1,13 +1,18 @@
 {
-  "template_id": "ms fincap holi",
-  "description": "holi festival with greeting colourful splash",
+  "template_id": "holi0001",
+  "season_months": [2, 3],
+  "description": "Holi festival greeting poster - colours gulal pichkari water balloons colour splash spring celebration personalized with names",
   "type": "poster",
   "tags": [
     "holi",
-    "festival",
-    "greeting"
+    "colours",
+    "gulal",
+    "pichkari",
+    "water balloons",
+    "colour splash",
+    "spring celebration"
   ],
-  "base_image": "templates/holi001/template.png",
+  "base_image": "templates/holi/holi001/template.png",
   "canvas": {
     "width": 1024,
     "height": 1536
