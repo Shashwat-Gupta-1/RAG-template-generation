@@ -1,22 +1,22 @@
 {
-  "template_id": "dussehra01",
-  "description": "A vibrant visual for Dussehra celebrations, appealing to families, showcasing cultural traditions and festive spirit.",
+  "template_id": "diwali1",
+  "description": "A vibrant Diwali celebration poster designed for families, encouraging joyful festivities and community gatherings with lights and colors.",
   "type": "poster",
   "tags": [
-    "Dussehra",
-    "Vijaya Dashami",
-    "Dasara",
-    "Navratri",
-    "Ravan",
+    "Diwali",
+    "Deepavali",
+    "festival",
+    "lights",
     "celebration",
-    "festivity",
-    "Indian festival",
     "Hindu",
-    "tradition",
-    "Raavan Dahan",
-    "festive"
+    "festive",
+    "family",
+    "community",
+    "laxmi pooja",
+    "rangoli",
+    "diyas"
   ],
-  "base_image": "templates/dussehra/dussehra01/template.png",
+  "base_image": "templates/diwali/diwali1/template.png",
   "canvas": {
     "width": 768,
     "height": 768
@@ -26,13 +26,13 @@
       "id": "name",
       "type": "text",
       "placeholder": "{{name}}",
-      "instruction": " enter value for name ",
+      "instruction": "Enter value for name",
       "llm_can_invent": false,
       "box": {
-        "x": 158,
-        "y": 98,
-        "width": 521,
-        "height": 157
+        "x": 192,
+        "y": 245,
+        "width": 177,
+        "height": 33
       },
       "style": {
         "font_family": "Poppins",

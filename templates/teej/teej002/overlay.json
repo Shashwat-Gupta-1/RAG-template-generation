@@ -85,7 +85,7 @@
       "id": "name",
       "type": "text",
       "placeholder": "{{name}}",
-      "instruction": "Describe name",
+      "instruction": "Extract the person's name (can be first name only or full name",
       "llm_can_invent": false,
       "box": {
         "x": 120,
