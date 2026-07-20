@@ -1,20 +1,22 @@
 {
-  "template_id": "dussehra03",
-  "description": "Celebrate Dussehra with heartfelt wishes for , sharing joy and positivity among family and friends.",
+  "template_id": "dussehra01",
+  "description": "A vibrant visual for Dussehra celebrations, appealing to families, showcasing cultural traditions and festive spirit.",
   "type": "poster",
   "tags": [
-    "dussehra",
-    "dussehra wishes",
-    "festival",
+    "Dussehra",
+    "Vijaya Dashami",
+    "Dasara",
+    "Navratri",
+    "Ravan",
     "celebration",
-    "celebrations",
-    "दशहरा",
-    "नवरात्रि",
-    "festive",
-    "joy",
-    "poshan"
+    "festivity",
+    "Indian festival",
+    "Hindu",
+    "tradition",
+    "Raavan Dahan",
+    "festive"
   ],
-  "base_image": "templates/dussehra/dussehra03/template.png",
+  "base_image": "templates/dussehra/dussehra01/template.png",
   "canvas": {
     "width": 768,
     "height": 768
@@ -24,13 +26,13 @@
       "id": "name",
       "type": "text",
       "placeholder": "{{name}}",
-      "instruction": "name of the person to wish diwali",
+      "instruction": "name ",
       "llm_can_invent": false,
       "box": {
-        "x": 81,
-        "y": 596,
-        "width": 195,
-        "height": 66
+        "x": 158,
+        "y": 98,
+        "width": 521,
+        "height": 157
       },
       "style": {
         "font_family": "Poppins",

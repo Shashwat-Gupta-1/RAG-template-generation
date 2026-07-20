@@ -32,18 +32,18 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile, Depends
 from fastapi.responses import FileResponse, JSONResponse
 import base64
+import uuid
 
 from backend.config import settings
-from backend.jobs.job_tracker import (
-    create_job,
-    get_job,
-    mark_done,
-    mark_failed,
-    update_progress,
-)
+from backend.database.session import get_db
+from backend.auth.dependencies import get_current_user
+from backend.database.models import User
+from backend.services import job_service, history_service
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.processing.field_split import (
     NEEDS_IMAGE,
     build_column_map,
@@ -120,7 +120,7 @@ def _apply_layout_overrides(template: dict, overrides: dict) -> dict:
 
     return patched
 
-def _run_bulk_job(
+async def _run_bulk_job(
     job_id: str,
     overlay: Dict[str, Any],
     df,                        # pandas DataFrame
@@ -132,6 +132,7 @@ def _run_bulk_job(
     Runs in the background after HTTP response is sent.
     Processes every row, renders a PNG, zips them all.
     """
+    from backend.database.session import AsyncSessionLocal
     output_dir = Path(settings.output_path)
     output_dir.mkdir(parents=True, exist_ok=True)
     zip_path = output_dir / f"{job_id}.zip"
@@ -141,80 +142,81 @@ def _run_bulk_job(
     completed   = 0
     total       = len(df)
 
-    try:
-        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for idx, (_, row) in enumerate(df.iterrows()):
-                row_dict = row.to_dict()
-                emp_id   = str(row_dict.get("emp_id", f"row_{idx}")).strip()
+    async with AsyncSessionLocal() as db:
+        try:
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for idx, (_, row) in enumerate(df.iterrows()):
+                    row_dict = row.to_dict()
+                    emp_id   = str(row_dict.get("emp_id", f"row_{idx}")).strip()
 
-                # ── Build values dict for this row ─────────────────────────
-                values = split_row(overlay, row_dict, column_map, prompt=prompt)
+                    # ── Build values dict for this row ─────────────────────────
+                    values = split_row(overlay, row_dict, column_map, prompt=prompt)
 
-                # ── Fill inventable fields via LLM ─────────────────────────
-                # Build context string so LLM has name/branch info for creative text
-                context = json.dumps(
-                    {k: v for k, v in row_dict.items() if k != "emp_id"},
-                    ensure_ascii=False
-                )
-                values = fill_invent_fields_only(overlay, values, context=context)
+                    # ── Fill inventable fields via LLM ─────────────────────────
+                    # Build context string so LLM has name/branch info for creative text
+                    context = json.dumps(
+                        {k: v for k, v in row_dict.items() if k != "emp_id"},
+                        ensure_ascii=False
+                    )
+                    values = fill_invent_fields_only(overlay, values, context=context)
 
-                # ── Check for missing required fields ──────────────────────
-                missing = [
-                    fid for fid, val in values.items()
-                    if val is None and fid != "emp_id"
-                ]
-                if missing:
-                    skipped_rows.append({
-                        "emp_id": emp_id,
-                        "row": idx + 2,   # Excel row number
-                        "missing_fields": missing,
-                        "reason": "Required field(s) missing in Excel and cannot be invented"
-                    })
-                    update_progress(job_id, completed)
-                    continue
+                    # ── Check for missing required fields ──────────────────────
+                    missing = [
+                        fid for fid, val in values.items()
+                        if val is None and fid != "emp_id"
+                    ]
+                    if missing:
+                        skipped_rows.append({
+                            "emp_id": emp_id,
+                            "row": idx + 2,   # Excel row number
+                            "missing_fields": missing,
+                            "reason": "Required field(s) missing in Excel and cannot be invented"
+                        })
+                        await job_service.update_progress(db, uuid.UUID(job_id), completed, skipped=len(skipped_rows))
+                        continue
 
-                # ── Replace image sentinel with actual photo bytes ─────────
-                for fid, val in values.items():
-                    if val == NEEDS_IMAGE:
-                        values[fid] = photo_bytes  # None if no photo uploaded
+                    # ── Replace image sentinel with actual photo bytes ─────────
+                    for fid, val in values.items():
+                        if val == NEEDS_IMAGE:
+                            values[fid] = photo_bytes  # None if no photo uploaded
 
-                # ── Render poster ──────────────────────────────────────────
-                try:
-                    image = render_overlay(overlay, values)
-                    img_bytes = io.BytesIO()
-                    image.convert("RGB").save(img_bytes, format="PNG")
-                    zf.writestr(f"{emp_id}.png", img_bytes.getvalue())
-                    completed += 1
-                except Exception as render_err:
-                    skipped_rows.append({
-                        "emp_id": emp_id,
-                        "row": idx + 2,
-                        "missing_fields": [],
-                        "reason": f"Render error: {render_err}"
-                    })
+                    # ── Render poster ──────────────────────────────────────────
+                    try:
+                        image = render_overlay(overlay, values)
+                        img_bytes = io.BytesIO()
+                        image.convert("RGB").save(img_bytes, format="PNG")
+                        zf.writestr(f"{emp_id}.png", img_bytes.getvalue())
+                        completed += 1
+                    except Exception as render_err:
+                        skipped_rows.append({
+                            "emp_id": emp_id,
+                            "row": idx + 2,
+                            "missing_fields": [],
+                            "reason": f"Render error: {render_err}"
+                        })
 
-                update_progress(job_id, completed)
+                    await job_service.update_progress(db, uuid.UUID(job_id), completed, skipped=len(skipped_rows))
 
-            # ── Write audit CSV into the ZIP ───────────────────────────────
-            if skipped_rows:
-                audit_buf = io.StringIO()
-                writer = csv.DictWriter(
-                    audit_buf,
-                    fieldnames=["emp_id", "row", "missing_fields", "reason"]
-                )
-                writer.writeheader()
-                for rec in skipped_rows:
-                    rec["missing_fields"] = ", ".join(rec["missing_fields"])
-                    writer.writerow(rec)
-                zf.writestr(
-                    "audit_skipped.csv",
-                    audit_buf.getvalue().encode("utf-8-sig")  # BOM for Excel
-                )
+                # ── Write audit CSV into the ZIP ───────────────────────────────
+                if skipped_rows:
+                    audit_buf = io.StringIO()
+                    writer = csv.DictWriter(
+                        audit_buf,
+                        fieldnames=["emp_id", "row", "missing_fields", "reason"]
+                    )
+                    writer.writeheader()
+                    for rec in skipped_rows:
+                        rec["missing_fields"] = ", ".join(rec["missing_fields"])
+                        writer.writerow(rec)
+                    zf.writestr(
+                        "audit_skipped.csv",
+                        audit_buf.getvalue().encode("utf-8-sig")  # BOM for Excel
+                    )
 
-        mark_done(job_id, download_url=f"/download/{job_id}")
+            await job_service.mark_done(db, uuid.UUID(job_id), zip_path=str(zip_path), download_url=f"/download/{job_id}")
 
-    except Exception as exc:
-        mark_failed(job_id, error=str(exc))
+        except Exception as exc:
+            await job_service.mark_failed(db, uuid.UUID(job_id), error=str(exc))
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -230,6 +232,8 @@ async def bulk_generate(
     column_mapping: str = Form(None),
     folder: Optional[str] = Form(None),
     template_id: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Start a bulk generation job.
@@ -301,7 +305,24 @@ async def bulk_generate(
     photo_bytes = await photo.read() if photo else None
 
     # Step 5 — Create job and hand off to background
-    job_id = create_job(total_rows=len(df))
+    job_convo = await job_service.create_job(
+        db,
+        user_id=current_user.id,
+        total_rows=len(df),
+        template_folder=overlay.get("folder"),
+        template_id=overlay.get("template_id"),
+        title=f"{prompt[:50]} ({len(df)} rows)" if prompt else f"Bulk: {len(df)} rows"
+    )
+    job_id = str(job_convo.id)
+    
+    # Save the user's message to conversation history
+    await history_service.add_message(
+        db,
+        conversation_id=job_convo.id,
+        role="user",
+        content=f"Bulk generation: {prompt}"
+    )
+
     background_tasks.add_task(
         _run_bulk_job,
         job_id,
@@ -330,6 +351,7 @@ async def bulk_preview(
     column_mapping: str = Form(None),
     folder: Optional[str] = Form(None),
     template_id: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Generate a preview poster for the first row of an Excel sheet.
@@ -555,17 +577,25 @@ async def bulk_preview(
 
 
 @router.get("/job-status/{job_id}")
-async def job_status(job_id: str):
+async def job_status(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Poll for bulk job progress.
 
     Response:
         {
-            job_id, status, total_rows, completed_rows,
+            job_id, status, total, completed, skipped, failed,
             download_url (when done), error (if failed)
         }
     """
-    job = get_job(job_id)
+    try:
+        job = await job_service.get_job(db, uuid.UUID(job_id), current_user.id)
+    except Exception:
+        job = None
+        
     if not job:
         return JSONResponse(
             status_code=404,
@@ -575,8 +605,21 @@ async def job_status(job_id: str):
 
 
 @router.get("/download/{job_id}")
-async def download_zip(job_id: str):
+async def download_zip(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Serve the completed ZIP file."""
+    # Verify ownership
+    try:
+        await job_service.get_job(db, uuid.UUID(job_id), current_user.id)
+    except Exception:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Job not found or access denied."}
+        )
+
     zip_path = Path(settings.output_path) / f"{job_id}.zip"
     if not zip_path.exists():
         return JSONResponse(
@@ -586,7 +629,7 @@ async def download_zip(job_id: str):
     return FileResponse(
         path=str(zip_path),
         media_type="application/zip",
-        filename=f"posters_{job_id}.zip"
+        filename=f"posters_{job_id[:8]}.zip"
     )
 
 

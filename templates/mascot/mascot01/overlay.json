@@ -1,0 +1,50 @@
+{
+  "template_id": "mascot01",
+  "description": "A vibrant mascot designed for festive parades, engaging audiences of all ages to celebrate community spirit and joy.",
+  "type": "poster",
+  "tags": [
+    "mascot",
+    "ड्रामा",
+    "festival",
+    "carnival",
+    "celebration",
+    "parade",
+    "character",
+    "event",
+    "समारोह",
+    "mascot design",
+    "किस्मत",
+    "entertainment"
+  ],
+  "base_image": "templates/mascot/mascot01/template.png",
+  "canvas": {
+    "width": 926,
+    "height": 1698
+  },
+  "overlay_layers": [
+    {
+      "id": "mascot",
+      "type": "text",
+      "placeholder": "{{mascot}}",
+      "instruction": "Value for mascot",
+      "llm_can_invent": false,
+      "box": {
+        "x": 138,
+        "y": 106,
+        "width": 424,
+        "height": 349
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

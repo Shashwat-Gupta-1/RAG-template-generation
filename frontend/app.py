@@ -11,11 +11,23 @@ API = "http://localhost:8000"
 
 import streamlit.components.v1 as components
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
+from auth_utils import auth_gate, get_auth_headers
+from history_utils import render_history_sidebar
 
 st.set_page_config(
     page_title="MS Fincap Template Generator",
     layout="centered"
 )
+
+# Run Auth Gate
+if not auth_gate():
+    st.stop()
+
+# Render History Sidebar
+render_history_sidebar()
 
 # ── Global CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -260,11 +272,14 @@ with tab_single:
 
                 try:
                     with st.spinner("Generating poster..."):
+                        # Combine get_auth_headers with Accept header
+                        headers = {"Accept": "application/json"}
+                        headers.update(get_auth_headers())
                         res = requests.post(
                             f"{API}/generate?json=true",
                             data=data,
                             files=files or None,
-                            headers={"Accept": "application/json"},
+                            headers=headers,
                             timeout=60,
                         )
                 except Exception as exc:
@@ -739,10 +754,12 @@ with tab_bulk:
 
                 try:
                     with st.spinner("Generating preview of the first row…"):
+                        headers = get_auth_headers()
                         res = requests.post(
                             f"{API}/bulk/preview",
                             data=data,
                             files=files,
+                            headers=headers,
                             timeout=30,
                         )
                     body = res.json()
@@ -965,11 +982,14 @@ with tab_bulk:
                             if st.button("Yes, proceed with all", type="primary", use_container_width=True):
                                 with st.spinner("Starting bulk generation job…"):
                                     # Post to /bulk to start the background job
+                                    job_started = False
                                     try:
+                                        headers = get_auth_headers()
                                         res_job = requests.post(
                                             f"{API}/bulk",
                                             data=data,
                                             files=files,
+                                            headers=headers,
                                             timeout=30,
                                         )
                                         job_body = res_job.json()
@@ -980,11 +1000,14 @@ with tab_bulk:
                                             st.session_state.bulk_error = None
                                             st.session_state.bulk_download_url = None
                                             st.session_state.bulk_started = False
-                                            st.rerun()
+                                            job_started = True
                                         else:
                                             st.error(f"Failed to start bulk job: {job_body}")
                                     except Exception as exc:
                                         st.error(f"Error starting bulk job: {exc}")
+
+                                    if job_started:
+                                        st.rerun()
 
                         with col_no:
                             if st.button("Cancel & start over", type="secondary", use_container_width=True):
@@ -1096,7 +1119,8 @@ with tab_bulk:
 
         # Poll the backend for current status
         try:
-            poll = requests.get(f"{API}/job-status/{job_id}", timeout=10)
+            headers = get_auth_headers()
+            poll = requests.get(f"{API}/job-status/{job_id}", headers=headers, timeout=10)
             job = poll.json()
         except Exception as exc:
             st.error(f"Could not reach backend: {exc}")
@@ -1122,7 +1146,8 @@ with tab_bulk:
             if download_url:
                 full_url = f"{API}{download_url}"
                 try:
-                    zip_resp = requests.get(full_url, timeout=60)
+                    headers = get_auth_headers()
+                    zip_resp = requests.get(full_url, headers=headers, timeout=60)
                     if zip_resp.status_code == 200:
                         st.download_button(
                             label="⬇Download ZIP (all posters)",

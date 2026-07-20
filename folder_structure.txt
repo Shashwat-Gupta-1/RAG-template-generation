@@ -1,0 +1,163 @@
+├── .env
+├── .env.example
+├── .gitignore
+├── backend
+│   ├── auth
+│   │   ├── __init__.py
+│   │   ├── dependencies.py
+│   │   └── security.py
+│   ├── config.py
+│   ├── database
+│   │   ├── __init__.py
+│   │   ├── models.py
+│   │   └── session.py
+│   ├── indexer
+│   │   └── indexer_templates.py
+│   ├── main.py
+│   ├── phase2
+│   │   ├── create_agent.py
+│   │   ├── template_saver.py
+│   │   └── zone_mapper.py
+│   ├── processing
+│   │   ├── field_split.py
+│   │   ├── llm.py
+│   │   ├── rag.py
+│   │   └── renderer.py
+│   ├── routes
+│   │   ├── agent_routes.py
+│   │   ├── auth_routes.py
+│   │   ├── bulk.py
+│   │   ├── generate.py
+│   │   └── history_routes.py
+│   ├── services
+│   │   ├── __init__.py
+│   │   ├── agent_service.py
+│   │   ├── history_service.py
+│   │   └── job_service.py
+│   └── validation
+│       ├── excel_validator.py
+│       └── logging_config.py
+├── brand_config.py
+│   ├── logo.png
+│   ├── mascot.png
+│   └── theme.json
+├── database.txt
+├── folder_structure.txt
+├── fonts
+│   ├── NotoSans-Bold.ttf
+│   ├── NotoSans-Regular.ttf
+│   ├── NotoSans.ttf
+│   ├── Poppins-Bold.ttf
+│   ├── Poppins-Regular.ttf
+│   └── Poppins-SemiBold.ttf
+├── frontend
+│   ├── app.py
+│   ├── auth_utils.py
+│   ├── draggable_editor
+│   │   └── index.html
+│   ├── history_utils.py
+│   └── pages
+│       ├── add_template.py
+│       └── create_template.py
+├── output
+│   ├── 01567262d4464062a846527338e888a6.png
+│   ├── 07ca606291a349609ab61de8535bf72b.png
+│   ├── 0c698cb4721b41b6af7b854681466a95.zip
+│   ├── 130d08a302cb45a09439f3dd52581854.png
+│   ├── 410e4348779d42ffbb5e8365abf42668.png
+│   ├── 7444745ebe2f4397aba4ef4f435d391d.png
+│   ├── ae87819349224182872b31bdd3625631.zip
+│   ├── b264fd5448204340ab34b576e40c6d18.zip
+│   ├── d8a898ba0dc548149bb7ecff3fb2355c.zip
+│   └── f0a222b985f44515b5eb4e3af15fbd58.png
+├── requirements.txt
+├── templates
+│   ├── diwali
+│   │   ├── diwali01
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   └── main.json
+│   ├── dussehra
+│   │   ├── dussehra001
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   ├── dussehra002
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   ├── dussehra01
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   ├── dussehra03
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   └── main.json
+│   ├── eid
+│   │   ├── eid001
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   └── main.json
+│   ├── gangaur
+│   │   ├── gangaur001
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   └── main.json
+│   ├── grand_opening
+│   │   ├── grand_opening001
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   └── main.json
+│   ├── hiring
+│   │   ├── hiring001
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   └── main.json
+│   ├── holi
+│   │   ├── holi001
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   └── main.json
+│   ├── lead_gen
+│   │   ├── lead_gen001
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   └── main.json
+│   ├── loan_offer
+│   │   ├── loan_offer001
+│   │   │   ├── overlay.json
+│   │   │   └── template.png
+│   │   └── main.json
+│   ├── mental health awareness
+│   │   ├── main.json
+│   │   └── mental_health_awareness01
+│   │       ├── overlay.json
+│   │       └── template.png
+│   ├── new_year
+│   │   ├── main.json
+│   │   └── new_year001
+│   │       ├── overlay.json
+│   │       └── template.png
+│   └── teej
+│       ├── main.json
+│       ├── teej001
+│       │   ├── overlay.json
+│       │   └── template.png
+│       ├── teej002
+│       │   ├── overlay.json
+│       │   └── template.png
+│       └── teej003
+│           ├── overlay.json
+│           └── template.png
+├── test_bulk_flow.py
+├── test_dussehra001.xlsx
+├── test_eid001.xlsx
+├── test_gangaur.xlsx
+├── test_grand_opening.xlsx
+├── test_hiring.xlsx
+├── test_holi001.xlsx
+├── test_lead_gen.xlsx
+├── test_loan_offer.xlsx
+├── test_new_year.xlsx
+├── test_output.png
+├── test_rag.py
+├── test_teej001.xlsx
+└── test_teej002.xlsx

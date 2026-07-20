@@ -5,8 +5,13 @@ import json
 import os
 import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Request, Depends
 from fastapi.responses import FileResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from backend.database.session import get_db
+from backend.auth.dependencies import get_current_user
+from backend.database.models import User
+from backend.services import history_service
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -91,6 +96,8 @@ async def generate(
     image: UploadFile = File(None),
     style_overrides: str = Form(None),   # JSON string: {"font_family":..., "color":..., etc.}
     layout_overrides: str = Form(None),  # JSON string: {"layer_id": {"x":..., "y":...}}
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     prompt = prompt.strip()
     if not prompt:
@@ -269,14 +276,36 @@ async def generate(
         out_path = os.path.join(settings.output_dir, f"output_{uuid.uuid4().hex}.png")
         render_poster(template, overlay_values, out_path, uploaded_image_path)
 
+        # Create conversation and add messages history
+        conv = await history_service.create_conversation(
+            db,
+            user_id=current_user.id,
+            title=prompt[:60] if prompt else f"Single: {template.get('template_id') or 'poster'}",
+            conversation_type="single",
+            template_folder=folder,
+            template_id=template.get("template_id")
+        )
+        await history_service.add_message(
+            db,
+            conversation_id=conv.id,
+            role="user",
+            content=prompt
+        )
+        await history_service.add_message(
+            db,
+            conversation_id=conv.id,
+            role="assistant",
+            content="Generated poster successfully.",
+            output_file_path=out_path,
+            template_used=template.get("template_id")
+        )
+
         # Check if client prefers JSON response (for drag and drop editor metadata)
         accept_header = request.headers.get("accept", "")
         if "application/json" in accept_header or request.query_params.get("json") == "true":
             import base64
             with open(out_path, "rb") as f:
                 img_b64 = base64.b64encode(f.read()).decode("utf-8")
-            if os.path.exists(out_path):
-                os.remove(out_path)
             return {
                 "status": "success",
                 "image": img_b64,

@@ -3,13 +3,23 @@ import io
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from auth_utils import auth_gate
+from history_utils import render_history_sidebar
 
 # pyrefly: ignore [missing-import]
 from streamlit_drawable_canvas import st_canvas
 from PIL import Image
 from typing import List, Dict, Any, Optional
+
+st.set_page_config(page_title="Add Your Template", layout="wide")
+
+# Run Auth Gate
+if not auth_gate():
+    st.stop()
+
+# Render History Sidebar
+render_history_sidebar()
 
 def get_existing_categories() -> List[str]:
     """Scans templates/ directory for subdirectories."""
@@ -51,7 +61,6 @@ def validate_subfolder_name(subfolder_name: str, category_name: str) -> Optional
     return None
 
 
-st.set_page_config(page_title="Add Your Template", layout="wide")
 st.title("Add your own template")
 st.caption(
     "Upload your designed PNG, draw placeholder boxes, configure each field, "

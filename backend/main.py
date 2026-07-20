@@ -1,10 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.jobs.job_tracker import init_db
+from backend.database.session import engine, Base
 from backend.routes.bulk import router as bulk_router
 from backend.routes.generate import router as generate_router
-
+from backend.routes.auth_routes import router as auth_router
+from backend.routes.history_routes import router as history_router
+from backend.routes.agent_routes import router as agent_router
+from backend.phase2.create_agent import _pool as langgraph_pool, get_checkpointer
 
 app = FastAPI(title="MS Fincap Template Generator")
 
@@ -18,8 +21,17 @@ app.add_middleware(
 
 
 @app.on_event("startup")
-def startup() -> None:
-	init_db()
+async def startup() -> None:
+	# Start LangGraph Postgres Checkpointer pool
+	if langgraph_pool is not None:
+		await langgraph_pool.open()
+		# Initialize the LangGraph saver/checkpointer schema tables
+		checkpointer = get_checkpointer()
+		await checkpointer.setup()
+
+	# Initialize database tables
+	async with engine.begin() as conn:
+		await conn.run_sync(Base.metadata.create_all)
 
 
 @app.get("/health")
@@ -27,6 +39,9 @@ def health() -> dict[str, str]:
 	return {"status": "ok"}
 
 
+app.include_router(auth_router)
+app.include_router(history_router)
+app.include_router(agent_router)
 app.include_router(generate_router)
 app.include_router(bulk_router)
 

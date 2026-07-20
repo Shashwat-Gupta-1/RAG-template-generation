@@ -1,20 +1,22 @@
 {
-  "template_id": "dussehra03",
-  "description": "Celebrate Dussehra with heartfelt wishes for , sharing joy and positivity among family and friends.",
+  "template_id": "diwali01",
+  "description": "An engaging Diwali greeting designed for employees, fostering celebration and inspiring a festive spirit in the workplace.",
   "type": "poster",
   "tags": [
-    "dussehra",
-    "dussehra wishes",
+    "Diwali",
     "festival",
+    "greeting",
+    "employees",
+    "Deepavali",
     "celebration",
-    "celebrations",
-    "दशहरा",
-    "नवरात्रि",
     "festive",
+    "lights",
     "joy",
-    "poshan"
+    "Happiness",
+    "Diya",
+    "Rangoli"
   ],
-  "base_image": "templates/dussehra/dussehra03/template.png",
+  "base_image": "templates/diwali/diwali01/template.png",
   "canvas": {
     "width": 768,
     "height": 768
@@ -24,13 +26,13 @@
       "id": "name",
       "type": "text",
       "placeholder": "{{name}}",
-      "instruction": "name of the person to wish diwali",
+      "instruction": "Enter value for name ",
       "llm_can_invent": false,
       "box": {
-        "x": 81,
-        "y": 596,
-        "width": 195,
-        "height": 66
+        "x": 108,
+        "y": 202,
+        "width": 410,
+        "height": 299
       },
       "style": {
         "font_family": "Poppins",

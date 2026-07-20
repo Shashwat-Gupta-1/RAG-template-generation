@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     output_dir: str = "output"
     chroma_db_path: str = "chroma_db"
     bulk_row_delay_ms: int = 100
+    database_url: str = Field(validation_alias="DATABASE_URL")
+    langgraph_db_url: str = Field(validation_alias="LANGGRAPH_DB_URL")
+    secret_key: str = Field(validation_alias="SECRET_KEY")
+    algorithm: str = Field(default="HS256", validation_alias="ALGORITHM")
+    access_token_expire_minutes: int = Field(default=480, validation_alias="ACCESS_TOKEN_EXPIRE_MINUTES")
 
     class Config:
         env_file = ".env"
