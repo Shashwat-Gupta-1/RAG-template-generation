@@ -184,9 +184,11 @@ def fill_values(
         llm_result = _parse_json(raw)
 
     # Whitelist — only accept keys that exist in the overlay
+    # AND only overwrite if the current value is still a sentinel (not a real user value)
     valid_ids = _valid_field_ids(overlay)
+    sentinel_set = {NEEDS_LLM_INVENT, NEEDS_LLM_EXTRACT}
     for fid, val in llm_result.items():
-        if fid in valid_ids:
+        if fid in valid_ids and values.get(fid) in sentinel_set:
             values[fid] = val if val not in (None, "") else None
 
     return values

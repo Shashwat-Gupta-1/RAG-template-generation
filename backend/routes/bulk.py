@@ -32,7 +32,7 @@ import zipfile
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile, Depends
+from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile, Depends, Request
 from fastapi.responses import FileResponse, JSONResponse
 import base64
 import uuid
@@ -127,7 +127,10 @@ async def _run_bulk_job(
     column_map: Dict[str, str],
     photo_bytes: Optional[bytes],
     prompt: str,
+    extra_inputs: Dict[str, str] = None,
+    direct_caption: Optional[str] = None,
 ) -> None:
+    extra_inputs = extra_inputs or {}
     """
     Runs in the background after HTTP response is sent.
     Processes every row, renders a PNG, zips them all.
@@ -147,18 +150,33 @@ async def _run_bulk_job(
             with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 for idx, (_, row) in enumerate(df.iterrows()):
                     row_dict = row.to_dict()
+                    row_dict.update(extra_inputs)
                     emp_id   = str(row_dict.get("emp_id", f"row_{idx}")).strip()
 
                     # ── Build values dict for this row ─────────────────────────
                     values = split_row(overlay, row_dict, column_map, prompt=prompt)
 
+                    # ── Apply extra_inputs directly (replaces sentinels, LLM skips them) ──
+                    for k, v in extra_inputs.items():
+                        if v is not None and str(v).strip() != "":
+                            values[k] = str(v).strip()
+
+                    # ── Apply direct_caption — highest priority, always wins ───
+                    if direct_caption and direct_caption.strip():
+                        if "caption" in values:   # only if template has a caption field
+                            values["caption"] = direct_caption.strip()
+                            print(f"[bulk] Row {idx}: caption locked to '{direct_caption.strip()}'")
+
                     # ── Fill inventable fields via LLM ─────────────────────────
-                    # Build context string so LLM has name/branch info for creative text
                     context = json.dumps(
                         {k: v for k, v in row_dict.items() if k != "emp_id"},
                         ensure_ascii=False
                     )
                     values = fill_invent_fields_only(overlay, values, context=context)
+
+                    # ── Re-apply direct_caption after LLM (final guard) ────────
+                    if direct_caption and direct_caption.strip() and "caption" in values:
+                        values["caption"] = direct_caption.strip()
 
                     # ── Check for missing required fields ──────────────────────
                     missing = [
@@ -224,6 +242,7 @@ async def _run_bulk_job(
 @router.post("/bulk")
 async def bulk_generate(
     background_tasks: BackgroundTasks,
+    request: Request,
     prompt: str = Form(...),
     excel_file: UploadFile = File(...),
     photo: Optional[UploadFile] = File(None),
@@ -232,6 +251,7 @@ async def bulk_generate(
     column_mapping: str = Form(None),
     folder: Optional[str] = Form(None),
     template_id: Optional[str] = Form(None),
+    direct_caption: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -295,11 +315,18 @@ async def bulk_generate(
             content={"errors": errors}
         )
 
+    form_data = await request.form()
+    extra_inputs = {}
+    for key, value in form_data.items():
+        if key not in {"prompt", "template_id", "folder", "photo", "style_overrides", "layout_overrides", "column_mapping", "excel_file"}:
+            if isinstance(value, str):
+                extra_inputs[key] = value.strip()
+
     # Step 3 — Build column map once for entire batch
     if custom_column_map:
         column_map = custom_column_map
     else:
-        column_map = build_column_map(overlay, list(df.columns))
+        column_map = build_column_map(overlay, list(df.columns) + list(extra_inputs.keys()))
 
     # Step 4 — Read photo if provided
     photo_bytes = await photo.read() if photo else None
@@ -331,6 +358,8 @@ async def bulk_generate(
         column_map,
         photo_bytes,
         prompt,
+        extra_inputs,
+        direct_caption.strip() if direct_caption and direct_caption.strip() else None,
     )
 
     return JSONResponse(content={
@@ -343,6 +372,7 @@ async def bulk_generate(
 
 @router.post("/bulk/preview")
 async def bulk_preview(
+    request: Request,
     prompt: str = Form(...),
     excel_file: UploadFile = File(...),
     photo: Optional[UploadFile] = File(None),
@@ -351,6 +381,7 @@ async def bulk_preview(
     column_mapping: str = Form(None),
     folder: Optional[str] = Form(None),
     template_id: Optional[str] = Form(None),
+    direct_caption: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -531,16 +562,34 @@ async def bulk_preview(
             content={"error": "Excel file is empty."}
         )
 
+    form_data = await request.form()
+    extra_inputs = {}
+    for key, value in form_data.items():
+        if key not in {"prompt", "template_id", "folder", "photo", "style_overrides", "layout_overrides", "column_mapping", "excel_file"}:
+            if isinstance(value, str):
+                extra_inputs[key] = value.strip()
+
     if custom_column_map:
         column_map = custom_column_map
     else:
-        column_map = build_column_map(overlay, list(df.columns))
+        column_map = build_column_map(overlay, list(df.columns) + list(extra_inputs.keys()))
 
     photo_bytes = await photo.read() if photo else None
 
     # Get first row data
     first_row = df.iloc[0].to_dict()
+    first_row.update(extra_inputs)
     values = split_row(overlay, first_row, column_map, prompt=prompt)
+
+    # Apply extra_inputs directly (replaces sentinels so LLM skips them)
+    for k, v in extra_inputs.items():
+        if v is not None and str(v).strip() != "":
+            values[k] = str(v).strip()
+
+    # Apply direct_caption — highest priority, before LLM
+    if direct_caption and direct_caption.strip() and "caption" in values:
+        values["caption"] = direct_caption.strip()
+        print(f"[bulk/preview] caption locked to '{direct_caption.strip()}'")
 
     # Fill inventable fields via LLM
     context = json.dumps(
@@ -548,6 +597,10 @@ async def bulk_preview(
         ensure_ascii=False
     )
     values = fill_invent_fields_only(overlay, values, context=context)
+
+    # Re-apply direct_caption after LLM (final guard)
+    if direct_caption and direct_caption.strip() and "caption" in values:
+        values["caption"] = direct_caption.strip()
 
     # Replace image zones
     for fid, val in values.items():

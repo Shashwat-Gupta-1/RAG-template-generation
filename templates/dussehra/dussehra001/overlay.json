@@ -1,6 +1,5 @@
 {
   "template_id": "dussehra001",
-  "season_months": [9, 10],
   "description": "Dussehra festival greeting poster - ravana dahan ram victory effigy burning dashami navratri end evil over good personalized with names",
   "type": "poster",
   "tags": [
@@ -22,7 +21,7 @@
       "id": "name",
       "type": "text",
       "placeholder": "{{name}}",
-      "instruction": "name of the person",
+      "instruction": "Extract the person's name (can be first name only or full name",
       "llm_can_invent": false,
       "box": {
         "x": 516,

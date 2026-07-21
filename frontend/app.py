@@ -94,6 +94,7 @@ defaults = {
     "bulk_selected_template_id": None, # Template selected in the bulk tab
     "bulk_custom_caption_prompt": "",  # Custom caption prompt for bulk AI regeneration
     "bulk_pending_ambiguous_matches": [],  # Stored ambiguous folder matches for bulk tab
+    "bulk_direct_caption": "",             # Direct caption text typed by user for bulk generation
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -603,6 +604,7 @@ with tab_bulk:
         st.session_state.bulk_selected_folder = None
         st.session_state.bulk_selected_template_id = None
         st.session_state.bulk_custom_caption_prompt = ""
+        st.session_state.bulk_direct_caption = ""
         st.session_state.bulk_pending_ambiguous_matches = []
         st.session_state.bulk_started = False
 
@@ -751,6 +753,8 @@ with tab_bulk:
                     data["column_mapping"] = json.dumps(st.session_state.bulk_column_mapping)
                 if st.session_state.bulk_custom_caption_prompt:
                     data["caption_prompt"] = st.session_state.bulk_custom_caption_prompt
+                if st.session_state.get("bulk_direct_caption", ""):
+                    data["direct_caption"] = st.session_state.bulk_direct_caption
 
                 try:
                     with st.spinner("Generating preview of the first row…"):
@@ -837,8 +841,7 @@ with tab_bulk:
                                             placeholder="e.g. Happy Teej to all!",
                                             key="bulk_direct_caption",
                                         )
-                                        if bulk_direct_caption:
-                                            data["caption"] = bulk_direct_caption
+                                        # caption is sent as direct_caption via session_state at top of data dict
 
                                         st.markdown("---")
 
