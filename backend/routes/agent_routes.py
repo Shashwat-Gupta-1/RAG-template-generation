@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 import uuid
+import os
 
 from backend.database.session import get_db
 from backend.database.models import User, Conversation
@@ -156,3 +158,39 @@ async def generate_image(
     )
     
     return res
+
+@router.get("/image")
+async def get_agent_image(
+    path: str,
+    token: str = None,
+    db: AsyncSession = Depends(get_db)
+):
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing token query parameter")
+    from backend.auth.security import decode_token
+    from sqlalchemy.future import select
+    from backend.database.models import User
+    try:
+        payload = decode_token(token)
+        email = payload.get("sub")
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalars().first()
+        if not user or not user.is_active:
+            raise HTTPException(status_code=401, detail="Invalid user")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Image not found")
+        
+    allowed_dirs = ["output", "templates"]
+    is_allowed = False
+    for allowed in allowed_dirs:
+        if allowed in path.replace("\\", "/").split("/"):
+            is_allowed = True
+            break
+            
+    if not is_allowed:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    return FileResponse(path)

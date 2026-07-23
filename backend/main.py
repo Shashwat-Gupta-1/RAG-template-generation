@@ -45,6 +45,9 @@ app.include_router(agent_router)
 app.include_router(generate_router)
 app.include_router(bulk_router)
 
+from backend.routes.template_routes import router as template_router
+app.include_router(template_router)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)

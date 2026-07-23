@@ -135,6 +135,25 @@ async def delete_convo(
     await history_service.delete_conversation(db, conversation_id=conversation_id, user_id=current_user.id)
 
 
+class RenameConversationRequest(BaseModel):
+    title: str
+
+@router.patch("/conversations/{conversation_id}")
+async def rename_convo(
+    conversation_id: uuid.UUID,
+    body: RenameConversationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Verify ownership before renaming
+    conv_data = await history_service.get_conversation_messages(db, conversation_id=conversation_id, user_id=current_user.id)
+    if not conv_data:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+        
+    await history_service.update_conversation_title(db, conversation_id, body.title)
+    return {"status": "success"}
+
+
 def _serialize_convo(c) -> dict:
     return {
         "id": c.id,

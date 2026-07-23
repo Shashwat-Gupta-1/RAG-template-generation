@@ -1,0 +1,50 @@
+{
+  "template_id": "diwali02",
+  "description": "A vibrant Diwali visual celebrating the festival of lights, appealing to families and communities for decorations and invitations.",
+  "type": "poster",
+  "tags": [
+    "Diwali",
+    "Deepavali",
+    "festival",
+    "lights",
+    "celebration",
+    "Hindu",
+    "festive",
+    "rangoli",
+    "sweets",
+    "diyas",
+    "celebration invitations",
+    "festive decor"
+  ],
+  "base_image": "templates/diwali/diwali02/template.png",
+  "canvas": {
+    "width": 768,
+    "height": 768
+  },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Enter value for name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 93,
+        "y": 311,
+        "width": 154,
+        "height": 30
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

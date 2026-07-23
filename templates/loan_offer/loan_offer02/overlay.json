@@ -1,0 +1,49 @@
+{
+  "template_id": "loan_offer02",
+  "description": "loan_offer themed visual template with field_1, field_2 overlay field",
+  "type": "poster",
+  "tags": [
+    "loan_offer",
+    "greeting",
+    "festival"
+  ],
+  "base_image": "templates/loan_offer/loan_offer02/template.png",
+  "canvas": {
+    "width": 768,
+    "height": 768
+  },
+  "overlay_layers": [
+    {
+      "id": "field_1",
+      "type": "text",
+      "instruction": "Value for field_1",
+      "llm_can_invent": true,
+      "font_family": "Poppins",
+      "font_size": 48,
+      "font_size_min": 20,
+      "font_weight": "bold",
+      "color": "#ffffff",
+      "align": "center",
+      "x": 105,
+      "y": 220,
+      "width": 268,
+      "height": 89
+    },
+    {
+      "id": "field_2",
+      "type": "text",
+      "instruction": "Value for field_2",
+      "llm_can_invent": true,
+      "font_family": "Poppins",
+      "font_size": 48,
+      "font_size_min": 20,
+      "font_weight": "bold",
+      "color": "#ffffff",
+      "align": "center",
+      "x": 116,
+      "y": 604,
+      "width": 174,
+      "height": 61
+    }
+  ]
+}

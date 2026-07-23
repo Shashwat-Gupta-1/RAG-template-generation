@@ -34,7 +34,7 @@ def read_excel(file_bytes: bytes) -> Tuple[Optional[pd.DataFrame], List[str]]:
 
     # ── Try reading the file ───────────────────────────────────────────────
     try:
-        df = pd.read_excel(BytesIO(file_bytes), dtype=str)
+        df = pd.read_excel(BytesIO(file_bytes), dtype=object)
     except Exception as exc:
         return None, [
             f"Could not read the file: {exc}. "
@@ -49,7 +49,32 @@ def read_excel(file_bytes: bytes) -> Tuple[Optional[pd.DataFrame], List[str]]:
         return None, ["The uploaded file has no data rows."]
 
     # ── Strip whitespace from all cell values ──────────────────────────────
-    df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
+    df = df.map(lambda x: str(x).strip() if pd.notna(x) and not isinstance(x, bytes) else x)
+
+    # ── Convert dataframe to object dtype to allow bytes insertion ────────
+    df = df.astype(object)
+
+    # ── Extract embedded images via openpyxl ───────────────────────────────
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(BytesIO(file_bytes), data_only=True)
+        ws = wb.active
+        images = getattr(ws, '_images', [])
+        for img in images:
+            if hasattr(img, 'anchor') and hasattr(img.anchor, '_from'):
+                col_idx = img.anchor._from.col
+                row_idx = img.anchor._from.row
+                
+                # Anchor row_idx=0 is header. row_idx=1 is df.iloc[0].
+                df_row = row_idx - 1
+                if 0 <= df_row < len(df) and 0 <= col_idx < len(df.columns):
+                    try:
+                        img_data = img._data()
+                        df.iat[df_row, col_idx] = img_data
+                    except Exception:
+                        pass
+    except Exception as e:
+        print(f"Warning: Could not extract embedded images: {e}")
 
     return df, []
 
@@ -92,7 +117,7 @@ def validate_structure(
         if not field_id:
             continue
         if field_type == "image":
-            continue    # image fields use uploaded photo, not Excel
+            continue    # image fields are optional in Excel (fallback to global photo)
         if can_invent:
             continue    # LLM will generate these, no Excel column needed
 
@@ -199,8 +224,7 @@ def get_excel_template(overlay: Dict[str, Any]) -> pd.DataFrame:
 
     for layer in overlay_layers:
         field_id   = str(layer.get("id", "")).strip()
-        field_type = str(layer.get("type", "text")).lower()
-        if field_id and field_type != "image":
+        if field_id:
             columns.append(field_id)
 
     return pd.DataFrame(columns=columns)

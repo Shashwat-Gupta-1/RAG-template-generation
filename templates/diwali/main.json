@@ -1,7 +1,7 @@
 {
   "folder": "diwali",
   "display_name": "Diwali",
-  "embed_text": "diwali diwali Deepavali Diwali Diya Happiness Hindu Rangoli celebration community diyas employees family festival festive greeting joy laxmi pooja lights rangoli",
+  "embed_text": "diwali diwali Deepavali Diwali Diya Happiness Hindu Rangoli celebration celebration invitations community diyas employees family festival festive festive decor greeting joy laxmi pooja lights rangoli sweets",
   "tags": [
     "Deepavali",
     "Diwali",
@@ -10,20 +10,24 @@
     "Hindu",
     "Rangoli",
     "celebration",
+    "celebration invitations",
     "community",
     "diyas",
     "employees",
     "family",
     "festival",
     "festive",
+    "festive decor",
     "greeting",
     "joy",
     "laxmi pooja",
     "lights",
-    "rangoli"
+    "rangoli",
+    "sweets"
   ],
   "templates": [
     "diwali01",
+    "diwali02",
     "diwali1"
   ]
 }

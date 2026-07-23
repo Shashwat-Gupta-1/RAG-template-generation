@@ -18,7 +18,9 @@ def resolve_save_path(
     os.makedirs(category_path, exist_ok=True)
 
     target_path = os.path.join(category_path, template_base_id)
-    if not os.path.exists(target_path):
+    # If the user passed the exact same name for category and base_id, 
+    # we force auto-numbering (e.g. diwali -> diwali01, diwali02)
+    if template_base_id != category and not os.path.exists(target_path):
         return target_path, template_base_id
 
     base_name = re.sub(r"\d+$", "", template_base_id)

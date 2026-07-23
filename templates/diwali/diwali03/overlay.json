@@ -1,0 +1,49 @@
+{
+  "template_id": "diwali03",
+  "description": "diwali themed visual template with field_1, field_2 overlay field",
+  "type": "poster",
+  "tags": [
+    "diwali",
+    "greeting",
+    "festival"
+  ],
+  "base_image": "templates/diwali/diwali03/template.png",
+  "canvas": {
+    "width": 768,
+    "height": 768
+  },
+  "overlay_layers": [
+    {
+      "id": "field_1",
+      "type": "text",
+      "instruction": "Value for field_1",
+      "llm_can_invent": true,
+      "font_family": "Poppins",
+      "font_size": 48,
+      "font_size_min": 20,
+      "font_weight": "bold",
+      "color": "#ffffff",
+      "align": "center",
+      "x": 310,
+      "y": 290,
+      "width": 130,
+      "height": 73
+    },
+    {
+      "id": "field_2",
+      "type": "text",
+      "instruction": "Value for field_2",
+      "llm_can_invent": true,
+      "font_family": "Poppins",
+      "font_size": 48,
+      "font_size_min": 20,
+      "font_weight": "bold",
+      "color": "#ffffff",
+      "align": "center",
+      "x": 96,
+      "y": 385,
+      "width": 390,
+      "height": 48
+    }
+  ]
+}

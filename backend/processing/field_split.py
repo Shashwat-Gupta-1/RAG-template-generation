@@ -44,7 +44,7 @@ def build_column_map(overlay: Dict[str, Any], excel_columns: List[str]) -> Dict[
 
     for layer in get_overlay_fields(overlay):
         field_id = layer.get("id", "").strip()
-        if not field_id or layer.get("type") == "image":
+        if not field_id:
             continue
         # Try exact match (case-insensitive)
         matched_col = lower_columns.get(field_id.lower())
@@ -77,10 +77,10 @@ def validate_excel_columns(
         field_type  = layer.get("type", "text")
         can_invent  = layer.get("llm_can_invent", False)
 
-        if not field_id or field_type == "image":
-            continue   # image fields use uploaded photo, not Excel
+        if not field_id:
+            continue
 
-        if not can_invent and field_id not in column_map:
+        if not can_invent and field_type != "image" and field_id not in column_map:
             errors.append(
                 f"Required column '{field_id}' not found in Excel. "
                 f"Columns present: {excel_columns}"
@@ -118,18 +118,24 @@ def split_row(
         if not field_id:
             continue
 
-        # ── Image field ───────────────────────────────────────────────────
+        excel_col = column_map.get(field_id)
+        has_excel_val = False
+        if excel_col and excel_col in excel_row:
+            cell_value = excel_row[excel_col]
+            if isinstance(cell_value, bytes):
+                values[field_id] = cell_value
+                has_excel_val = True
+            elif cell_value is not None and str(cell_value).strip() != "":
+                values[field_id] = str(cell_value).strip()
+                has_excel_val = True
+
+        if has_excel_val:
+            continue
+
+        # ── Image field fallback ──────────────────────────────────────────
         if field_type == "image":
             values[field_id] = NEEDS_IMAGE
             continue
-
-        # ── Excel has the value ───────────────────────────────────────────
-        excel_col = column_map.get(field_id)
-        if excel_col and excel_col in excel_row:
-            cell_value = excel_row[excel_col]
-            if cell_value is not None and str(cell_value).strip() != "":
-                values[field_id] = str(cell_value).strip()
-                continue
 
         # ── LLM can invent it ─────────────────────────────────────────────
         if can_invent:

@@ -43,6 +43,7 @@ from backend.auth.dependencies import get_current_user
 from backend.database.models import User
 from backend.services import job_service, history_service
 from sqlalchemy.ext.asyncio import AsyncSession
+import httpx
 
 from backend.processing.field_split import (
     NEEDS_IMAGE,
@@ -56,6 +57,19 @@ from backend.validation.excel_validator import validate_excel, get_excel_templat
 
 router = APIRouter()
 
+async def _fetch_image_bytes(url: str) -> Optional[bytes]:
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "image/webp,image/apng,image/*,*/*;q=0.8"
+        }
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(url.strip(), headers=headers)
+            resp.raise_for_status()
+            return resp.content
+    except Exception as e:
+        print(f"Warning: Failed to fetch image from URL {url}: {e}")
+        return None
 
 # ── Background job ────────────────────────────────────────────────────────────
 
@@ -169,7 +183,7 @@ async def _run_bulk_job(
 
                     # ── Fill inventable fields via LLM ─────────────────────────
                     context = json.dumps(
-                        {k: v for k, v in row_dict.items() if k != "emp_id"},
+                        {k: v for k, v in row_dict.items() if k != "emp_id" and not isinstance(v, bytes)},
                         ensure_ascii=False
                     )
                     values = fill_invent_fields_only(overlay, values, context=context)
@@ -193,10 +207,17 @@ async def _run_bulk_job(
                         await job_service.update_progress(db, uuid.UUID(job_id), completed, skipped=len(skipped_rows))
                         continue
 
-                    # ── Replace image sentinel with actual photo bytes ─────────
+                    # ── Resolve image zones (URL or Photo Bytes) ────────────────
                     for fid, val in values.items():
                         if val == NEEDS_IMAGE:
                             values[fid] = photo_bytes  # None if no photo uploaded
+                        elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
+                            # It's a URL from Excel, fetch it
+                            fetched = await _fetch_image_bytes(val)
+                            if fetched:
+                                values[fid] = fetched
+                            else:
+                                values[fid] = photo_bytes # fallback
 
                     # ── Render poster ──────────────────────────────────────────
                     try:
@@ -553,6 +574,7 @@ async def bulk_preview(
                 "folder": overlay.get("folder"),
                 "overlay_layers": overlay.get("overlay_layers"),
                 "column_map": default_map,
+                "excel_columns": excel_cols,
             }
         )
 
@@ -593,7 +615,7 @@ async def bulk_preview(
 
     # Fill inventable fields via LLM
     context = json.dumps(
-        {k: v for k, v in first_row.items() if k != "emp_id"},
+        {k: v for k, v in first_row.items() if k != "emp_id" and not isinstance(v, bytes)},
         ensure_ascii=False
     )
     values = fill_invent_fields_only(overlay, values, context=context)
@@ -605,7 +627,19 @@ async def bulk_preview(
     # Replace image zones
     for fid, val in values.items():
         if val == NEEDS_IMAGE:
+            print(f"[DEBUG] Field {fid} was NEEDS_IMAGE, using global photo.")
             values[fid] = photo_bytes
+        elif isinstance(val, bytes):
+            print(f"[DEBUG] Field {fid} received bytes from Excel (length: {len(val)})")
+        elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
+            print(f"[DEBUG] Field {fid} received URL from Excel. Fetching...")
+            fetched = await _fetch_image_bytes(val)
+            if fetched:
+                print(f"[DEBUG] Successfully fetched URL for {fid}")
+                values[fid] = fetched
+            else:
+                print(f"[DEBUG] Failed to fetch URL for {fid}, falling back to photo_bytes.")
+                values[fid] = photo_bytes
 
     try:
         image = render_overlay(overlay, values)
@@ -621,6 +655,7 @@ async def bulk_preview(
             "canvas": overlay.get("canvas"),
             "overlay_layers": overlay.get("overlay_layers"),
             "column_map": column_map,
+            "excel_columns": list(df.columns),
         })
     except Exception as exc:
         return JSONResponse(
