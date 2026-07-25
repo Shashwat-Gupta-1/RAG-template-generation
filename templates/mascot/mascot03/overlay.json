@@ -1,0 +1,67 @@
+{
+  "template_id": "mascot03",
+  "description": "Custom promotional mascot visual poster template with name, field_2 overlay fields designed for social media greetings, announcements, and marketing graphics.",
+  "type": "poster",
+  "tags": [
+    "mascot",
+    "greeting",
+    "festival",
+    "poster",
+    "announcement"
+  ],
+  "base_image": "templates/mascot/mascot03/template.png",
+  "canvas": {
+    "width": 2500,
+    "height": 3125
+  },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "name of person",
+      "llm_can_invent": true,
+      "box": {
+        "x": 147,
+        "y": 147,
+        "width": 1471,
+        "height": 221
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_2",
+      "type": "text",
+      "placeholder": "{{field_2}}",
+      "instruction": "Enter value for field_2",
+      "llm_can_invent": false,
+      "box": {
+        "x": 235,
+        "y": 1165,
+        "width": 1651,
+        "height": 1096
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 37,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#d13333",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

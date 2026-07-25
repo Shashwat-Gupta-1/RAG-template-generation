@@ -25,6 +25,8 @@ class RebuildPromptRequest(BaseModel):
 class RefinePromptRequest(BaseModel):
     conversation_id: uuid.UUID
     refinement_request: str
+    previous_prompt: Optional[str] = None
+
 
 class GenerateImageRequest(BaseModel):
     conversation_id: uuid.UUID
@@ -131,8 +133,9 @@ async def refine_prompt(
     # Verify ownership
     await verify_ownership(db, body.conversation_id, current_user.id)
     
-    res = await agent_service.run_agent_refine(str(body.conversation_id), body.refinement_request)
+    res = await agent_service.run_agent_refine(str(body.conversation_id), body.refinement_request, body.previous_prompt)
     return res
+
 
 @router.post("/generate-image")
 async def generate_image(
@@ -156,3 +159,222 @@ async def generate_image(
     )
     
     return res
+
+@router.get("/categories")
+async def get_categories():
+    import os
+    from backend.config import settings
+    base_dir = settings.templates_dir
+    if not os.path.exists(base_dir):
+        return {"categories": []}
+    try:
+        categories = sorted([
+            name for name in os.listdir(base_dir)
+            if os.path.isdir(os.path.join(base_dir, name))
+        ])
+        return {"categories": categories}
+    except Exception as e:
+        return {"categories": [], "error": str(e)}
+
+class PreviewRenderRequest(BaseModel):
+    overlay: Dict[str, Any]
+    image_b64: Optional[str] = None
+    conversation_id: Optional[str] = None
+
+@router.post("/render-preview")
+async def render_sample_preview(
+    body: PreviewRenderRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    import base64
+    import os
+    import tempfile
+    from backend.processing.renderer import render_poster
+
+    png_bytes = None
+    if body.image_b64:
+        try:
+            raw_b64 = body.image_b64
+            if "," in raw_b64:
+                raw_b64 = raw_b64.split(",", 1)[1]
+            png_bytes = base64.b64decode(raw_b64)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid image_b64 data: {e}")
+    elif body.conversation_id:
+        try:
+            conv_uuid = uuid.UUID(str(body.conversation_id))
+            data = await history_service.get_conversation_messages(
+                db, conversation_id=conv_uuid, user_id=current_user.id
+            )
+            image_msg = next((m for m in reversed(data.get("messages", [])) if m.output_file_path and m.output_file_path.endswith(".png")), None)
+            if image_msg and image_msg.output_file_path:
+                with open(image_msg.output_file_path, "rb") as f:
+                    png_bytes = f.read()
+        except Exception as e:
+            print(f"[render_preview] error reading conversation image: {e}")
+
+    if not png_bytes:
+        raise HTTPException(status_code=400, detail="No base image found for preview render.")
+
+    # Create temporary files for render
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_base:
+        tmp_base.write(png_bytes)
+        tmp_base_path = tmp_base.name
+
+    tmp_out_path = tmp_base_path.replace(".png", "_out.png")
+
+    try:
+        sample_values = {
+            layer["id"]: f"[{layer['id']}] font:{layer.get('style', {}).get('font_family', 'Poppins')}"
+            if layer.get("type") == "text" else ""
+            for layer in body.overlay.get("overlay_layers", [])
+            if layer.get("id")
+        }
+
+        test_overlay = {
+            **body.overlay,
+            "template_id": "_preview",
+            "base_image": tmp_base_path,
+            "description": "preview",
+            "tags": [],
+            "type": "poster",
+        }
+
+        render_poster(test_overlay, sample_values, tmp_out_path, tmp_base_path)
+
+        with open(tmp_out_path, "rb") as f:
+            out_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+        return {"status": "success", "image_b64": f"data:image/png;base64,{out_b64}"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Preview render failed: {e}")
+    finally:
+        if os.path.exists(tmp_base_path):
+            os.remove(tmp_base_path)
+        if os.path.exists(tmp_out_path):
+            os.remove(tmp_out_path)
+
+class SaveTemplateRequest(BaseModel):
+    category: str
+    template_base_id: str
+    user_hint: Optional[str] = ""
+    overlay: Dict[str, Any]
+    image_b64: Optional[str] = None
+    conversation_id: Optional[str] = None
+
+def _validate_subfolder_name(subfolder_name: str, category_name: str) -> Optional[str]:
+    import os
+    from backend.config import settings
+
+    name = subfolder_name.strip().lower()
+    cat = category_name.strip().lower()
+
+    if not name:
+        return "Subfolder/Template ID cannot be empty."
+
+    if name == cat:
+        return f"Subfolder/Template ID '{subfolder_name}' cannot be the same as the category folder name '{category_name}'."
+
+    base_dir = settings.templates_dir
+    if os.path.exists(base_dir):
+        try:
+            existing_folders = [
+                f.lower() for f in os.listdir(base_dir)
+                if os.path.isdir(os.path.join(base_dir, f))
+            ]
+            if name in existing_folders:
+                return f"Subfolder name '{subfolder_name}' conflicts with an existing templates category folder name '{name}'."
+        except Exception:
+            pass
+    return None
+
+@router.post("/save-template")
+async def save_template(
+    body: SaveTemplateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    import base64
+    from backend.phase2.template_saver import save_template_files
+    from backend.processing.llm import generate_tags_and_description
+
+    cat_name = body.category.strip().lower()
+    base_id = body.template_base_id.strip()
+
+    val_err = _validate_subfolder_name(base_id, cat_name)
+    if val_err:
+        raise HTTPException(status_code=400, detail=val_err)
+
+    png_bytes = None
+    if body.image_b64:
+        try:
+            raw_b64 = body.image_b64
+            if "," in raw_b64:
+                raw_b64 = raw_b64.split(",", 1)[1]
+            png_bytes = base64.b64decode(raw_b64)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid image_b64 data: {e}")
+    elif body.conversation_id:
+        try:
+            conv_uuid = uuid.UUID(str(body.conversation_id))
+            data = await history_service.get_conversation_messages(
+                db, conversation_id=conv_uuid, user_id=current_user.id
+            )
+            image_msg = next((m for m in reversed(data.get("messages", [])) if m.output_file_path and m.output_file_path.endswith(".png")), None)
+            if image_msg and image_msg.output_file_path:
+                with open(image_msg.output_file_path, "rb") as f:
+                    png_bytes = f.read()
+        except Exception as e:
+            print(f"[save_template] error reading conversation image: {e}")
+
+    if not png_bytes:
+        raise HTTPException(status_code=400, detail="No PNG image provided for template base.")
+
+    # Gather field IDs and instructions for LLM tag generation
+    overlay_layers = body.overlay.get("overlay_layers", [])
+    field_ids = [l["id"] for l in overlay_layers if l.get("type") == "text" and l.get("id")]
+    instructions = [l.get("instruction", "") for l in overlay_layers if l.get("type") == "text" and l.get("id")]
+
+    # Generate LLM tags & rich description
+    try:
+        meta = generate_tags_and_description(cat_name, field_ids, instructions, body.user_hint or "")
+    except Exception as e:
+        fallback_desc = body.user_hint if (body.user_hint and len(body.user_hint.split()) >= 10) else f"Custom promotional {cat_name} visual poster template designed for social media greetings, announcements, and marketing graphics."
+        meta = {
+            "description": fallback_desc,
+            "tags": [cat_name, "poster", "greeting"]
+        }
+
+    full_overlay = {
+        "template_id": base_id,
+        "description": meta.get("description", body.user_hint or ""),
+        "type": "poster",
+        "tags": meta.get("tags", [cat_name]),
+        "base_image": "",
+        "canvas": body.overlay.get("canvas", {"width": 1024, "height": 1536}),
+        "overlay_layers": overlay_layers
+    }
+
+    try:
+        folder_path, resolved_id = save_template_files(
+            png_bytes=png_bytes,
+            overlay=full_overlay,
+            category=cat_name,
+            template_base_id=base_id
+        )
+        return {
+            "status": "success",
+            "message": f"Saved as `{resolved_id}` in `{cat_name}/` — searchable immediately!",
+            "folder": cat_name,
+            "template_id": resolved_id,
+            "folder_path": folder_path
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save template: {e}")
+
+

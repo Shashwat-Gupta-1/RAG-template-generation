@@ -243,16 +243,39 @@ async def generate(
         # ── Apply user layout overrides ────────────────────────────────────
         template = _apply_layout_overrides(template, parsed_layout_overrides)
 
-        # Extract caption_prompt override (not a real field value, handled separately)
+        # Extract caption_prompt override and field_prompts/field_values
         caption_prompt_override = form_data.get("caption_prompt")
         if caption_prompt_override:
             caption_prompt_override = str(caption_prompt_override).strip()
-        
+
+        field_values_override = form_data.get("field_values")
+        parsed_field_values = {}
+        if field_values_override:
+            try:
+                parsed_field_values = json.loads(field_values_override)
+            except Exception:
+                pass
+
+        field_prompts_override = form_data.get("field_prompts")
+        parsed_field_prompts = {}
+        if field_prompts_override:
+            try:
+                parsed_field_prompts = json.loads(field_prompts_override)
+            except Exception:
+                pass
+
+        # Merge parsed_field_values into extra_inputs
+        for k, v in parsed_field_values.items():
+            if v is not None and str(v).strip() != "":
+                extra_inputs[k] = str(v).strip()
+
         overlay_values, null_fields = build_field_values_single(
             template, prompt,
             existing_values=extra_inputs,
             caption_instruction=caption_prompt_override,
+            field_prompts=parsed_field_prompts,
         )
+
 
         # Merge user inputs from request form parameters
         for key, val in extra_inputs.items():

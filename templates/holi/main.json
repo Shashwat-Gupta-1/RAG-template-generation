@@ -1,18 +1,31 @@
 {
   "folder": "holi",
   "display_name": "Holi",
-  "embed_text": "holi holi colour splash colours gulal holi pichkari spring celebration water balloons",
+  "embed_text": "holi holi Holi Indian festival MS Fincap celebration clean design colorful colour splash colours corporate festival festivity gulal holi minimal modern pichkari spring celebration water balloons फाग",
   "tags": [
+    "Holi",
+    "Indian festival",
+    "MS Fincap",
+    "celebration",
+    "clean design",
+    "colorful",
     "colour splash",
     "colours",
+    "corporate",
+    "festival",
+    "festivity",
     "gulal",
     "holi",
+    "minimal",
+    "modern",
     "pichkari",
     "spring celebration",
-    "water balloons"
+    "water balloons",
+    "फाग"
   ],
   "templates": [
-    "holi001"
+    "holi001",
+    "holi02"
   ],
   "season_months": [
     2,

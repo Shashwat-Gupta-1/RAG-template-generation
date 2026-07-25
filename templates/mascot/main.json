@@ -1,22 +1,27 @@
 {
   "folder": "mascot",
   "display_name": "Mascot",
-  "embed_text": "mascot mascot carnival celebration character entertainment event festival mascot mascot design parade किस्मत ड्रामा समारोह",
+  "embed_text": "mascot mascot announcement carnival celebration character entertainment event festival greeting mascot mascot design parade poster किस्मत ड्रामा समारोह",
   "tags": [
+    "announcement",
     "carnival",
     "celebration",
     "character",
     "entertainment",
     "event",
     "festival",
+    "greeting",
     "mascot",
     "mascot design",
     "parade",
+    "poster",
     "किस्मत",
     "ड्रामा",
     "समारोह"
   ],
   "templates": [
-    "mascot01"
+    "mascot01",
+    "mascot02",
+    "mascot03"
   ]
 }

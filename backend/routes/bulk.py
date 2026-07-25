@@ -37,15 +37,19 @@ from fastapi.responses import FileResponse, JSONResponse
 import base64
 import uuid
 
+import pandas as pd
+from sqlalchemy import select
 from backend.config import settings
 from backend.database.session import get_db
 from backend.auth.dependencies import get_current_user
-from backend.database.models import User
+from backend.database.models import User, Conversation
 from backend.services import job_service, history_service
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.processing.field_split import (
     NEEDS_IMAGE,
+    NEEDS_LLM_EXTRACT,
+    NEEDS_LLM_INVENT,
     build_column_map,
     split_row,
 )
@@ -120,6 +124,54 @@ def _apply_layout_overrides(template: dict, overrides: dict) -> dict:
 
     return patched
 
+def extract_embedded_excel_images(file_bytes: bytes) -> Dict[int, bytes]:
+    """
+    Extracts embedded images from an .xlsx file using openpyxl.
+    Returns a dict mapping 0-indexed row index -> image bytes.
+    """
+    import io, openpyxl
+    row_images: Dict[int, bytes] = {}
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        for ws in wb.worksheets:
+            images = getattr(ws, "_images", [])
+            for img in images:
+                row_idx = None
+                if hasattr(img, "anchor"):
+                    anchor = img.anchor
+                    if hasattr(anchor, "_from") and hasattr(anchor._from, "row"):
+                        row_idx = anchor._from.row
+                    elif hasattr(anchor, "row"):
+                        row_idx = anchor.row
+
+                if row_idx is not None:
+                    img_bytes = None
+                    if hasattr(img, "_data") and callable(img._data):
+                        try:
+                            img_bytes = img._data()
+                        except Exception:
+                            pass
+                    if not img_bytes and hasattr(img, "ref"):
+                        try:
+                            if isinstance(img.ref, io.BytesIO):
+                                img_bytes = img.ref.getvalue()
+                        except Exception:
+                            pass
+
+                    if img_bytes:
+                        # Row index in openpyxl anchors:
+                        # row_idx 0 = Excel Row 1 (Header row)
+                        # row_idx 1 = Excel Row 2 (Data row index 0 in DataFrame)
+                        if row_idx > 0:
+                            row_images[row_idx - 1] = img_bytes
+                        else:
+                            row_images[0] = img_bytes
+    except Exception:
+        pass
+    return row_images
+
+
+
 async def _run_bulk_job(
     job_id: str,
     overlay: Dict[str, Any],
@@ -127,77 +179,146 @@ async def _run_bulk_job(
     column_map: Dict[str, str],
     photo_bytes: Optional[bytes],
     prompt: str,
+    parsed_field_values: Optional[Dict[str, str]] = None,
+    field_instruction_overrides: Optional[Dict[str, str]] = None,
+    excel_bytes: Optional[bytes] = None,
 ) -> None:
     """
     Runs in the background after HTTP response is sent.
-    Processes every row, renders a PNG, zips them all.
+    Renders PNGs into a job checkpoint folder, skips existing images if resuming,
+    then zips all images into the final download package.
     """
     from backend.database.session import AsyncSessionLocal
     output_dir = Path(settings.output_path)
     output_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = output_dir / f"{job_id}.zip"
 
-    # Audit records — rows that were skipped due to missing required fields
+    # Checkpoint working directory for individual PNGs
+    job_dir = output_dir / f"job_{job_id}"
+    job_dir.mkdir(parents=True, exist_ok=True)
+
+    # Extract embedded images from input Excel file if present
+    embedded_images: Dict[int, bytes] = {}
+    if excel_bytes:
+        try:
+            embedded_images = extract_embedded_excel_images(excel_bytes)
+        except Exception:
+            pass
+
+    if not embedded_images:
+        excel_path = job_dir / "input.xlsx"
+        if excel_path.exists():
+            try:
+                with open(excel_path, "rb") as ef:
+                    embedded_images = extract_embedded_excel_images(ef.read())
+            except Exception:
+                pass
+
+    # Save meta checkpoint JSON file
+    meta_path = job_dir / "meta.json"
+    meta_data = {
+        "job_id": job_id,
+        "prompt": prompt,
+        "folder": overlay.get("folder") or overlay.get("template_folder"),
+        "template_id": overlay.get("template_id"),
+        "overlay": overlay,
+        "column_map": column_map,
+        "parsed_field_values": parsed_field_values,
+        "field_instruction_overrides": field_instruction_overrides,
+    }
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta_data, f, ensure_ascii=False, indent=2)
+
+
+    # Save photo bytes if provided
+    if photo_bytes:
+        photo_path = job_dir / "photo.bin"
+        with open(photo_path, "wb") as f:
+            f.write(photo_bytes)
+
+    zip_path = output_dir / f"{job_id}.zip"
     skipped_rows = []
-    completed   = 0
-    total       = len(df)
+    completed = 0
+    total = len(df)
 
     async with AsyncSessionLocal() as db:
         try:
-            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                for idx, (_, row) in enumerate(df.iterrows()):
-                    row_dict = row.to_dict()
-                    emp_id   = str(row_dict.get("emp_id", f"row_{idx}")).strip()
+            for idx, (_, row) in enumerate(df.iterrows()):
+                row_dict = row.to_dict()
+                emp_id = str(row_dict.get("emp_id", f"row_{idx}")).strip()
+                target_png = job_dir / f"{emp_id}.png"
 
-                    # ── Build values dict for this row ─────────────────────────
-                    values = split_row(overlay, row_dict, column_map, prompt=prompt)
-
-                    # ── Fill inventable fields via LLM ─────────────────────────
-                    # Build context string so LLM has name/branch info for creative text
-                    context = json.dumps(
-                        {k: v for k, v in row_dict.items() if k != "emp_id"},
-                        ensure_ascii=False
-                    )
-                    values = fill_invent_fields_only(overlay, values, context=context)
-
-                    # ── Check for missing required fields ──────────────────────
-                    missing = [
-                        fid for fid, val in values.items()
-                        if val is None and fid != "emp_id"
-                    ]
-                    if missing:
-                        skipped_rows.append({
-                            "emp_id": emp_id,
-                            "row": idx + 2,   # Excel row number
-                            "missing_fields": missing,
-                            "reason": "Required field(s) missing in Excel and cannot be invented"
-                        })
-                        await job_service.update_progress(db, uuid.UUID(job_id), completed, skipped=len(skipped_rows))
-                        continue
-
-                    # ── Replace image sentinel with actual photo bytes ─────────
-                    for fid, val in values.items():
-                        if val == NEEDS_IMAGE:
-                            values[fid] = photo_bytes  # None if no photo uploaded
-
-                    # ── Render poster ──────────────────────────────────────────
-                    try:
-                        image = render_overlay(overlay, values)
-                        img_bytes = io.BytesIO()
-                        image.convert("RGB").save(img_bytes, format="PNG")
-                        zf.writestr(f"{emp_id}.png", img_bytes.getvalue())
-                        completed += 1
-                    except Exception as render_err:
-                        skipped_rows.append({
-                            "emp_id": emp_id,
-                            "row": idx + 2,
-                            "missing_fields": [],
-                            "reason": f"Render error: {render_err}"
-                        })
-
+                # Checkpoint Check: Skip rendering if poster was already generated in a previous run
+                if target_png.exists() and target_png.stat().st_size > 0:
+                    completed += 1
                     await job_service.update_progress(db, uuid.UUID(job_id), completed, skipped=len(skipped_rows))
+                    continue
 
-                # ── Write audit CSV into the ZIP ───────────────────────────────
+                # ── Build values dict for this row ─────────────────────────
+                values = split_row(overlay, row_dict, column_map, prompt=prompt)
+
+                if parsed_field_values:
+                    for fid, val in parsed_field_values.items():
+                        if val is not None and str(val).strip() != "":
+                            values[fid] = str(val).strip()
+
+                context = json.dumps(
+                    {k: v for k, v in row_dict.items() if k != "emp_id"},
+                    ensure_ascii=False
+                )
+                values = fill_invent_fields_only(overlay, values, context=context, field_instruction_overrides=field_instruction_overrides)
+
+                missing = [
+                    fid for fid, val in values.items()
+                    if val is None and fid != "emp_id"
+                ]
+                if missing:
+                    skipped_rows.append({
+                        "emp_id": emp_id,
+                        "row": idx + 2,
+                        "missing_fields": missing,
+                        "reason": "Required field(s) missing in Excel and cannot be invented"
+                    })
+                    await job_service.update_progress(db, uuid.UUID(job_id), completed, skipped=len(skipped_rows))
+                    continue
+
+                for layer in overlay.get("overlay_layers") or []:
+                    if str(layer.get("type", "")).lower() == "image":
+                        fid = layer.get("id")
+                        if not fid:
+                            continue
+                        val = values.get(fid)
+
+                        # Priority 1: Check embedded images extracted from Excel for this row
+                        if idx in embedded_images:
+                            values[fid] = embedded_images[idx]
+                        # Priority 2: Check if val is a valid URL or local file path string
+                        elif val and val != NEEDS_IMAGE and is_valid_value(val):
+                            pass  # Keep URL or file path string
+                        # Priority 3: Fall back to shared photo_bytes uploaded by user
+                        elif photo_bytes:
+                            values[fid] = photo_bytes
+
+
+
+                try:
+                    image = render_overlay(overlay, values)
+                    image.convert("RGB").save(target_png, format="PNG")
+                    completed += 1
+                except Exception as render_err:
+                    skipped_rows.append({
+                        "emp_id": emp_id,
+                        "row": idx + 2,
+                        "missing_fields": [],
+                        "reason": f"Render error: {render_err}"
+                    })
+
+                await job_service.update_progress(db, uuid.UUID(job_id), completed, skipped=len(skipped_rows))
+
+            # Package all rendered PNGs into final ZIP package
+            with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                for png_file in job_dir.glob("*.png"):
+                    zf.write(png_file, arcname=png_file.name)
+
                 if skipped_rows:
                     audit_buf = io.StringIO()
                     writer = csv.DictWriter(
@@ -210,13 +331,14 @@ async def _run_bulk_job(
                         writer.writerow(rec)
                     zf.writestr(
                         "audit_skipped.csv",
-                        audit_buf.getvalue().encode("utf-8-sig")  # BOM for Excel
+                        audit_buf.getvalue().encode("utf-8-sig")
                     )
 
             await job_service.mark_done(db, uuid.UUID(job_id), zip_path=str(zip_path), download_url=f"/download/{job_id}")
 
         except Exception as exc:
             await job_service.mark_failed(db, uuid.UUID(job_id), error=str(exc))
+
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -230,11 +352,14 @@ async def bulk_generate(
     style_overrides: str = Form(None),
     layout_overrides: str = Form(None),
     column_mapping: str = Form(None),
+    field_values: Optional[str] = Form(None),
+    field_prompts: Optional[str] = Form(None),
     folder: Optional[str] = Form(None),
     template_id: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+
     """
     Start a bulk generation job.
 
@@ -323,6 +448,36 @@ async def bulk_generate(
         content=f"Bulk generation: {prompt}"
     )
 
+    parsed_field_values = {}
+    if field_values:
+        try:
+            parsed_field_values = json.loads(field_values)
+        except Exception:
+            pass
+
+    parsed_field_prompts = {}
+    if field_prompts:
+        try:
+            parsed_field_prompts = json.loads(field_prompts)
+        except Exception:
+            pass
+
+    field_instruction_overrides = {}
+    if parsed_field_prompts:
+        for fid, prompt_text in parsed_field_prompts.items():
+            if prompt_text and str(prompt_text).strip():
+                field_instruction_overrides[fid] = f"GENERATE — {str(prompt_text).strip()}"
+
+    # Save input excel file into job checkpoint dir for resumption support
+    output_dir = Path(settings.output_path)
+    job_dir = output_dir / f"job_{job_id}"
+    job_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        with open(job_dir / "input.xlsx", "wb") as f:
+            f.write(file_bytes)
+    except Exception:
+        pass
+
     background_tasks.add_task(
         _run_bulk_job,
         job_id,
@@ -331,6 +486,9 @@ async def bulk_generate(
         column_map,
         photo_bytes,
         prompt,
+        parsed_field_values,
+        field_instruction_overrides,
+        file_bytes,
     )
 
     return JSONResponse(content={
@@ -339,6 +497,107 @@ async def bulk_generate(
         "total_rows": len(df),
         "message":    f"Job started. {len(df)} rows queued."
     })
+
+@router.post("/bulk/resume/{job_id}")
+async def resume_bulk_job(
+    job_id: str,
+
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Resume an interrupted or failed bulk generation job from its checkpoint.
+    """
+    job = await job_service.get_job(db, uuid.UUID(job_id), current_user.id)
+    if not job:
+        return JSONResponse(status_code=404, content={"error": "Bulk job not found."})
+
+    output_dir = Path(settings.output_path)
+    job_dir = output_dir / f"job_{job_id}"
+    meta_path = job_dir / "meta.json"
+    excel_path = job_dir / "input.xlsx"
+
+    if job.job_status in ("processing", "queued"):
+        return JSONResponse(
+            content={
+                "job_id": job_id,
+                "status": job.job_status,
+                "message": f"Bulk job is already {job.job_status}."
+            }
+        )
+
+    if not excel_path.exists():
+        return JSONResponse(
+            status_code=400,
+            content={"error": "No checkpoint Excel file found for this job. Please restart the bulk job."}
+        )
+
+    meta = {}
+    if meta_path.exists():
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+        except Exception:
+            pass
+
+    photo_bytes = None
+    photo_path = job_dir / "photo.bin"
+    if photo_path.exists():
+        try:
+            with open(photo_path, "rb") as f:
+                photo_bytes = f.read()
+        except Exception:
+            pass
+
+    file_bytes = excel_path.read_bytes()
+    df = pd.read_excel(io.BytesIO(file_bytes))
+    overlay = meta.get("overlay")
+    if not overlay:
+        folder = meta.get("folder")
+        template_id = meta.get("template_id")
+        if folder and template_id:
+            overlay = load_template(folder, template_id)
+
+    if not overlay:
+        # Fallback to DB conversation template info
+        result = await db.execute(select(Conversation).where(Conversation.id == uuid.UUID(job_id)))
+        conv = result.scalars().first()
+        if conv and conv.template_folder and conv.template_id:
+            overlay = load_template(conv.template_folder, conv.template_id)
+
+    if not overlay:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Template overlay for this bulk job could not be loaded."}
+        )
+
+    column_map = meta.get("column_map")
+    if not column_map:
+        column_map = build_column_map(overlay, list(df.columns))
+
+    await job_service.mark_processing(db, uuid.UUID(job_id))
+
+    background_tasks.add_task(
+        _run_bulk_job,
+        job_id,
+        overlay,
+        df,
+        column_map,
+        photo_bytes,
+        meta.get("prompt", ""),
+        meta.get("parsed_field_values"),
+        meta.get("field_instruction_overrides"),
+        file_bytes,
+    )
+
+    return JSONResponse(content={
+        "job_id": job_id,
+        "status": "processing",
+        "message": "Resumed bulk job from checkpoint."
+    })
+
+
 
 
 @router.post("/bulk/preview")
@@ -349,10 +608,13 @@ async def bulk_preview(
     style_overrides: str = Form(None),
     layout_overrides: str = Form(None),
     column_mapping: str = Form(None),
+    field_values: Optional[str] = Form(None),
+    field_prompts: Optional[str] = Form(None),
     folder: Optional[str] = Form(None),
     template_id: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
 ):
+
     """
     Generate a preview poster for the first row of an Excel sheet.
     """
@@ -503,72 +765,102 @@ async def bulk_preview(
 
     file_bytes = await excel_file.read()
     df, errors = validate_excel(file_bytes, overlay, custom_column_map)
-    if errors:
-        excel_cols = []
-        try:
-            from backend.validation.excel_validator import read_excel
-            df_cols, _ = read_excel(file_bytes)
-            if df_cols is not None:
-                excel_cols = list(df_cols.columns)
-        except Exception:
-            pass
 
-        default_map = custom_column_map if custom_column_map else build_column_map(overlay, excel_cols)
-        return JSONResponse(
-            status_code=422,
-            content={
-                "errors": errors,
-                "template_id": overlay.get("template_id"),
-                "folder": overlay.get("folder"),
-                "overlay_layers": overlay.get("overlay_layers"),
-                "column_map": default_map,
-            }
-        )
+    excel_cols = []
+    try:
+        from backend.validation.excel_validator import read_excel
+        df_cols, _ = read_excel(file_bytes)
+        if df_cols is not None:
+            excel_cols = list(df_cols.columns)
+    except Exception:
+        pass
 
-    if df.empty:
-        return JSONResponse(
-            status_code=400,
-            content={"error": "Excel file is empty."}
-        )
-
-    if custom_column_map:
-        column_map = custom_column_map
-    else:
-        column_map = build_column_map(overlay, list(df.columns))
+    column_map = custom_column_map if custom_column_map else build_column_map(overlay, excel_cols)
 
     photo_bytes = await photo.read() if photo else None
 
+    parsed_field_values = {}
+    if field_values:
+        try:
+            parsed_field_values = json.loads(field_values)
+        except Exception:
+            pass
+
+    parsed_field_prompts = {}
+    if field_prompts:
+        try:
+            parsed_field_prompts = json.loads(field_prompts)
+        except Exception:
+            pass
+
+    field_instruction_overrides = {}
+    if parsed_field_prompts:
+        for fid, prompt_text in parsed_field_prompts.items():
+            if prompt_text and str(prompt_text).strip():
+                field_instruction_overrides[fid] = f"GENERATE — {str(prompt_text).strip()}"
+
     # Get first row data
-    first_row = df.iloc[0].to_dict()
+    first_row = df.iloc[0].to_dict() if df is not None and not df.empty else {}
     values = split_row(overlay, first_row, column_map, prompt=prompt)
 
-    # Fill inventable fields via LLM
+    # Fill inventable fields via LLM if possible
     context = json.dumps(
         {k: v for k, v in first_row.items() if k != "emp_id"},
         ensure_ascii=False
     )
-    values = fill_invent_fields_only(overlay, values, context=context)
+    values = fill_invent_fields_only(overlay, values, context=context, field_instruction_overrides=field_instruction_overrides)
 
-    # Replace image zones
-    for fid, val in values.items():
-        if val == NEEDS_IMAGE:
-            values[fid] = photo_bytes
+    # Ensure unmapped/missing fields have placeholder text for live preview rendering
+    for layer in overlay.get("overlay_layers", []):
+        fid = layer.get("id")
+        if fid and (values.get(fid) is None or values.get(fid) in (NEEDS_LLM_EXTRACT, NEEDS_LLM_INVENT)):
+            if layer.get("type") != "image":
+                values[fid] = parsed_field_values.get(fid) or f"[{fid.upper()}]"
+
+    # Apply direct field_values overrides
+    for fid, val in parsed_field_values.items():
+        if val is not None and str(val).strip() != "":
+            values[fid] = str(val).strip()
+
+    # Replace image zones — check embedded images in Row 1 (index 0) first, then photo_bytes
+    embedded_images_preview = {}
+    try:
+        embedded_images_preview = extract_embedded_excel_images(file_bytes)
+    except Exception:
+        pass
+
+    for layer in overlay.get("overlay_layers", []):
+        if str(layer.get("type", "")).lower() == "image":
+            fid = layer.get("id")
+            if fid:
+                if 0 in embedded_images_preview:
+                    values[fid] = embedded_images_preview[0]
+                elif photo_bytes:
+                    values[fid] = photo_bytes
+                elif values.get(fid) == NEEDS_IMAGE:
+                    values[fid] = None
 
     try:
         image = render_overlay(overlay, values)
         img_bytes = io.BytesIO()
         image.convert("RGB").save(img_bytes, format="PNG")
         b64_str = base64.b64encode(img_bytes.getvalue()).decode("utf-8")
-        
-        return JSONResponse(content={
+
+        response_payload = {
             "preview_image": b64_str,
-            "total_rows": len(df),
+            "total_rows": len(df) if df is not None else 0,
             "template_id": overlay.get("template_id"),
             "folder": overlay.get("folder"),
             "canvas": overlay.get("canvas"),
             "overlay_layers": overlay.get("overlay_layers"),
             "column_map": column_map,
-        })
+            "excel_columns": excel_cols,
+        }
+        if errors:
+            response_payload["errors"] = errors
+
+        return JSONResponse(content=response_payload)
+
     except Exception as exc:
         return JSONResponse(
             status_code=500,

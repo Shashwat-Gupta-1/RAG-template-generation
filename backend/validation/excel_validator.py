@@ -72,13 +72,16 @@ def validate_structure(
     errors: List[str] = []
     excel_cols_lower = {c.lower(): c for c in df.columns}
 
-    # ── emp_id must always exist ───────────────────────────────────────────
-    for required_col in ALWAYS_REQUIRED:
-        if required_col.lower() not in excel_cols_lower:
-            errors.append(
-                f"Required column '{required_col}' is missing. "
-                f"Columns found: {list(df.columns)}"
-            )
+    # ── Check row identifier column (emp_id or mapped alias) ──────────────────
+    emp_mapped = custom_column_map.get("emp_id") if custom_column_map else None
+    if not emp_mapped:
+        emp_mapped = next((c for c in df.columns if c.lower() in ("emp_id", "employee_id", "id", "emp_no", "sr_no", "code", "user_id")), None)
+
+    if not emp_mapped or emp_mapped not in df.columns:
+        errors.append(
+            f"Row identifier 'emp_id' is unmapped and not present in Excel. "
+            f"Please map an Excel column to emp_id in the Column Mapping panel below."
+        )
 
     # ── Check overlay required fields have matching columns ────────────────
     overlay_layers = overlay.get("overlay_layers") or []
@@ -107,11 +110,12 @@ def validate_structure(
 
     if missing_cols:
         errors.append(
-            f"These overlay fields have no matching Excel column: {missing_cols}. "
-            f"Columns found: {list(df.columns)}"
+            f"These template fields have no matching Excel column: {missing_cols}. "
+            f"Please map them using the Column Mapping section below."
         )
 
     return errors
+
 
 
 def validate_rows(df: pd.DataFrame) -> List[str]:

@@ -37,7 +37,58 @@ if not logger.handlers:
 # ---------------------------------------------------------------------------
 # Model configuration
 # ---------------------------------------------------------------------------
-DEFAULT_MODEL = "openai/gpt-4o-mini"
+DEFAULT_MODEL = getattr(settings, "groq_model_agent", "") or getattr(settings, "groq_model", "") or getattr(settings, "openrouter_model", "llama-3.3-70b-versatile")
+
+
+def call_llm(
+    messages: List[Dict[str, str]],
+    max_tokens: int = 800,
+    temperature: float = 0.4,
+    model: Optional[str] = None,
+) -> str:
+    """Calls the configured LLM API (Groq API preferred, or OpenRouter) with retries."""
+    groq_key = getattr(settings, "groq_api_key", "") or os.getenv("GROQ_API_KEY", "")
+    if groq_key:
+        client = openai.OpenAI(
+            base_url="https://api.groq.com/openai/v1",
+            api_key=groq_key,
+        )
+        target_model = model or getattr(settings, "groq_model_agent", "") or getattr(settings, "groq_model", "llama-3.3-70b-versatile")
+    else:
+        openrouter_key = os.getenv("OPENROUTER_API_KEY", "") or getattr(settings, "openrouter_api_key", "")
+        client = openai.OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=openrouter_key,
+            default_headers={
+                "HTTP-Referer": "https://msfincap.com",
+                "X-Title": "MS Fincap Template System",
+            },
+        )
+        target_model = model or DEFAULT_MODEL
+
+    for attempt in range(3):
+        try:
+            response = client.chat.completions.create(
+                model=target_model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                messages=messages,
+                timeout=30,
+            )
+            return response.choices[0].message.content or ""
+        except openai.RateLimitError:
+            time.sleep(2 ** (attempt + 1))
+        except openai.APIConnectionError as e:
+            if attempt == 2:
+                raise ConnectionError(f"Cannot reach LLM API: {e}")
+            time.sleep(2)
+        except Exception as e:
+            if attempt == 2:
+                raise e
+            time.sleep(1)
+    raise RuntimeError("Failed to call LLM after 3 attempts")
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -45,13 +96,21 @@ DEFAULT_MODEL = "openai/gpt-4o-mini"
 # ---------------------------------------------------------------------------
 def load_brand_theme() -> dict:
     """Loads brand configuration from theme.json or returns default styling."""
-    theme_path = "brand_config/theme.json"
-    if os.path.exists(theme_path):
-        try:
-            with open(theme_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
+    possible_paths = [
+        "brand_config.py/theme.json",
+        "brand_config/theme.json",
+        os.path.join(os.path.dirname(__file__), "..", "..", "brand_config.py", "theme.json"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "brand_config", "theme.json"),
+    ]
+    for theme_path in possible_paths:
+        if os.path.exists(theme_path):
+            try:
+                with open(theme_path, "r", encoding="utf-8") as f:
+                    logger.info(f"Loaded brand theme from {theme_path}")
+                    return json.load(f)
+            except Exception as e:
+                logger.error(f"Failed to load brand theme from {theme_path}: {e}")
+
     return {
         "company": {
             "name": "MS Fincap Pvt. Ltd.",
@@ -149,9 +208,6 @@ def _default_assumptions() -> Dict[str, str]:
     }
 
 
-# ---------------------------------------------------------------------------
-# LLM helper (OpenRouter)
-# ---------------------------------------------------------------------------
 def _parse_json_response(raw: str) -> dict:
     """Parses JSON out of an LLM response, stripping markdown fences if present."""
     raw = raw.strip()
@@ -168,47 +224,6 @@ def _parse_json_response(raw: str) -> dict:
     if start != -1 and end > start:
         return json.loads(raw[start:end])
     raise json.JSONDecodeError("No JSON found", raw, 0)
-
-
-def call_llm(
-    messages: List[Dict[str, str]],
-    max_tokens: int = 800,
-    temperature: float = 0.4,
-    model: str = DEFAULT_MODEL,
-) -> str:
-    """Calls the configured OpenRouter model with retries/backoff."""
-    openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
-
-    client = openai.OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=openrouter_key,
-        default_headers={
-            "HTTP-Referer": "https://msfincap.com",
-            "X-Title": "MS Fincap Template System",
-        },
-    )
-
-    for attempt in range(3):
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                messages=messages,
-                timeout=30,
-            )
-            return response.choices[0].message.content or ""
-        except openai.RateLimitError:
-            time.sleep(2 ** (attempt + 1))
-        except openai.APIConnectionError as e:
-            if attempt == 2:
-                raise ConnectionError(f"Cannot reach OpenRouter: {e}")
-            time.sleep(2)
-        except Exception as e:
-            if attempt == 2:
-                raise e
-            time.sleep(1)
-    raise RuntimeError("Failed to call LLM after 3 attempts")
 
 
 def _history_snippet(conversation_history: List[Dict[str, str]], max_turns: int = 12) -> str:
@@ -320,6 +335,43 @@ RESPONSE FORMAT (MUST BE VALID JSON ONLY):
         }
 
 
+def _clean_prompt_output(raw: str) -> str:
+    """Strips LLM reasoning/thinking preamble (like 'The user wants...', 'Key constraints:', 'Structure:')
+    and markdown fences to return ONLY the pure prompt string."""
+    text = raw.strip()
+
+    # If LLM included markdown code fence
+    if text.startswith("```"):
+        lines = text.split("\n")
+        if len(lines) > 2 and lines[-1].strip().startswith("```"):
+            text = "\n".join(lines[1:-1]).strip()
+        elif len(lines) > 1:
+            text = "\n".join(lines[1:]).strip()
+
+    # Remove wrapping quotes
+    if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+        text = text[1:-1].strip()
+
+    # Filter out reasoning/planning headers if model dumps inner monologue
+    if any(k in text for k in ["The user wants", "Key constraints:", "Structure:", "From theme.json:"]):
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+        candidate = ""
+        for p in reversed(paragraphs):
+            lower_p = p.lower()
+            if not any(header in lower_p for header in ["the user wants", "key constraints:", "structure:", "from theme.json", "i need to"]):
+                candidate = p
+                break
+        if candidate:
+            text = candidate
+
+    # Remove lingering labels like "Prompt:" or "Final Prompt:"
+    for prefix in ["Prompt:", "Final Prompt:", "Pollinations Prompt:", "Flux Prompt:"]:
+        if text.startswith(prefix):
+            text = text[len(prefix):].strip()
+
+    return text.strip()
+
+
 def _node_build_prompt(state: AgentState) -> AgentState:
     """Prompt Builder: turns brand + assumptions + user edits + conversation context into an image prompt.
 
@@ -351,14 +403,15 @@ Only describe the mascot position changing within allowed positions: {", ".join(
 If mascot is disabled or inappropriate for the occasion (according to avoid_when), do not include it.
 
 Always forbid in the generated prompt:
-
 - watermark
 - signature
 - typography
 
 Describe placeholder regions as completely blank, solid-color empty shapes or areas (e.g. 'a solid blank white rounded rectangle for text', 'a solid blank circular frame for photo'). Do not include any text labels inside these regions.
 
-Return only the final prompt. No introduction, no markdown block formatting, no quotes. Just the text of the prompt.
+CRITICAL REQUIREMENT:
+Do NOT write any thinking process, reasoning, planning, inner monologue, or meta-comments (such as "The user wants...", "Key constraints:", "Structure:", "From theme.json:").
+Output ONLY the final image generation prompt text itself as a single paragraph. Nothing else.
 """
     messages = [
         {"role": "system", "content": system_prompt},
@@ -367,8 +420,9 @@ Return only the final prompt. No introduction, no markdown block formatting, no 
 
     logger.info("Prompt Builder node invoking %s...", DEFAULT_MODEL)
     try:
-        prompt = call_llm(messages, max_tokens=600, temperature=0.3)
-        return {**state, "generated_prompt": prompt.strip(), "error": None}
+        raw_prompt = call_llm(messages, max_tokens=600, temperature=0.3)
+        cleaned_prompt = _clean_prompt_output(raw_prompt)
+        return {**state, "generated_prompt": cleaned_prompt, "error": None}
     except Exception as e:
         logger.error("Prompt Builder node error: %s", e, exc_info=True)
         fallback = (
@@ -381,7 +435,7 @@ Return only the final prompt. No introduction, no markdown block formatting, no 
 def _node_refine_prompt(state: AgentState) -> AgentState:
     """Prompt Refiner: rewrites the previous prompt per the user's requested change, keeping context."""
     brand_theme = state["brand_theme"]
-    previous_prompt = state.get("previous_prompt", "")
+    previous_prompt = state.get("previous_prompt") or state.get("generated_prompt", "")
     refinement_request = state.get("refinement_request", "")
     conversation_history = state.get("conversation_history", [])
 
@@ -405,7 +459,7 @@ CONSTRAINTS:
 2. Forbid any text, letters, numbers, watermark, QR code, signature, or typography in the prompt.
 3. Describe placeholder regions as empty, solid, blank areas.
 4. Modify the prompt to incorporate the refinement request (e.g., changes in lighting, background elements, style adjustments, secondary colors).
-5. Return only the final prompt. No intro, no explanation, no quotes. Just the text of the prompt.
+5. CRITICAL REQUIREMENT: Output ONLY the final revised image generation prompt text itself. Do NOT output any inner monologue, chain of thought, reasoning, or preamble (such as "The user wants...", "Structure:", "Key constraints:"). Output strictly the single final prompt text string.
 """
     messages = [
         {"role": "system", "content": system_prompt},
@@ -414,12 +468,15 @@ CONSTRAINTS:
 
     logger.info("Prompt Refiner node invoking %s...", DEFAULT_MODEL)
     try:
-        refined = call_llm(messages, max_tokens=600, temperature=0.3)
-        return {**state, "generated_prompt": refined.strip(), "error": None}
+        raw_refined = call_llm(messages, max_tokens=600, temperature=0.3)
+        cleaned_refined = _clean_prompt_output(raw_refined)
+        return {**state, "generated_prompt": cleaned_refined, "error": None}
     except Exception as e:
         logger.error("Prompt Refiner node error: %s", e, exc_info=True)
         fallback = f"{previous_prompt}. Refinement: {refinement_request}"
         return {**state, "generated_prompt": fallback, "error": str(e)}
+
+
 
 
 def _route(state: AgentState) -> str:
@@ -652,18 +709,19 @@ class SessionAgent:
         await _COMPILED_GRAPH.aupdate_state(config, {"assumptions": assumptions, "generated_prompt": generated_prompt})
         return generated_prompt
 
-    async def refine_prompt(self, conversation_id: str, refinement_request: str) -> str:
+    async def refine_prompt(self, conversation_id: str, refinement_request: str, previous_prompt: Optional[str] = None) -> str:
         config = {"configurable": {"thread_id": str(conversation_id)}}
         state = await _COMPILED_GRAPH.aget_state(config)
         history = state.values.get("conversation_history") or []
-        previous_prompt = state.values.get("generated_prompt") or ""
+        current_stored_prompt = state.values.get("generated_prompt") or ""
+        target_previous_prompt = previous_prompt.strip() if (previous_prompt and previous_prompt.strip()) else current_stored_prompt
 
         result = await _COMPILED_GRAPH.ainvoke(
             {
                 "action": "refine_prompt",
                 "brand_theme": load_brand_theme(),
                 "conversation_history": history,
-                "previous_prompt": previous_prompt,
+                "previous_prompt": target_previous_prompt,
                 "refinement_request": refinement_request,
             },
             config=config
@@ -671,6 +729,7 @@ class SessionAgent:
         generated_prompt = result.get("generated_prompt")
         await _COMPILED_GRAPH.aupdate_state(config, {"generated_prompt": generated_prompt})
         return generated_prompt
+
 
     async def generate_image(self, conversation_id: str) -> str:
         config = {"configurable": {"thread_id": str(conversation_id)}}

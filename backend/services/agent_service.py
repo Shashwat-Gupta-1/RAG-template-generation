@@ -28,10 +28,11 @@ async def run_agent_rebuild(conversation_id: str, assumptions: Dict[str, Any], u
     prompt = await agent.rebuild_prompt(conversation_id, assumptions, user_edits)
     return {"generated_prompt": prompt}
 
-async def run_agent_refine(conversation_id: str, refinement_request: str) -> Dict[str, Any]:
+async def run_agent_refine(conversation_id: str, refinement_request: str, previous_prompt: Optional[str] = None) -> Dict[str, Any]:
     agent = SessionAgent()
-    prompt = await agent.refine_prompt(conversation_id, refinement_request)
+    prompt = await agent.refine_prompt(conversation_id, refinement_request, previous_prompt)
     return {"generated_prompt": prompt}
+
 
 async def run_agent_generate_image(conversation_id: str) -> Dict[str, Any]:
     agent = SessionAgent()

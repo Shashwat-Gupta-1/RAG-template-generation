@@ -93,28 +93,23 @@ def index_folder(folder_name: str, main: dict) -> None:
     collection = get_collection()
     embedder = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
 
-    try:
-        collection.delete(ids=[folder_name])
-    except Exception:
-        pass
-
     vector = embedder.encode(main["embed_text"]).tolist()
     
-    metadata = {
-        "folder": folder_name,
-        "display_name": main["display_name"],
-        "template_count": len(main["templates"])
-    }
-    if "season_months" in main:
-        # chroma metadata only supports flat primitives, so serialize array as JSON string
-        metadata["season_months"] = json.dumps(main["season_months"])
-
-    collection.add(
-        ids=[folder_name],
-        embeddings=[vector],
-        documents=[json.dumps(main)],
-        metadatas=[metadata]
-    )
+    try:
+        collection.upsert(
+            ids=[folder_name],
+            embeddings=[vector],
+            documents=[json.dumps(main)]
+        )
+    except Exception as e:
+        try:
+            collection.add(
+                ids=[folder_name],
+                embeddings=[vector],
+                documents=[json.dumps(main)]
+            )
+        except Exception:
+            pass
     print(f"  Indexed: {folder_name} ({len(main['templates'])} template(s))")
 
 def run():

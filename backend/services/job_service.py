@@ -93,6 +93,16 @@ async def mark_failed(db: AsyncSession, conversation_id: uuid.UUID, error: str =
         )
         await db.commit()
 
+async def mark_processing(db: AsyncSession, conversation_id: uuid.UUID) -> None:
+    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    conv = result.scalars().first()
+    if conv:
+        conv.job_status = "processing"
+        conv.job_error = None
+        conv.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        await db.commit()
+
+
 async def get_job(db: AsyncSession, conversation_id: uuid.UUID, user_id: uuid.UUID) -> dict | None:
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conv = result.scalars().first()

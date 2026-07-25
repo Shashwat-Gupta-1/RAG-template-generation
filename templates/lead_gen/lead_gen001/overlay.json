@@ -43,7 +43,7 @@
       "type": "text",
       "placeholder": "{{heading}}",
       "instruction": "Describe event",
-      "llm_can_invent": false,
+      "llm_can_invent": true,
       "box": {
         "x": 173,
         "y": 272,

@@ -1,0 +1,74 @@
+{
+  "template_id": "diwali02",
+  "description": "Celebrate Diwali with vibrant designs, perfect for families, businesses, and communities to share joy and light.",
+  "type": "poster",
+  "tags": [
+    "Diwali",
+    "Deepavali",
+    "Festival",
+    "Lights",
+    "Happiness",
+    "Tradition",
+    "Celebration",
+    "Families",
+    "Fireworks",
+    "Rangoli",
+    "Sweets",
+    "Hindu"
+  ],
+  "base_image": "templates/diwali/diwali02/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1536
+  },
+  "overlay_layers": [
+    {
+      "id": "headline",
+      "type": "text",
+      "placeholder": "{{headline}}",
+      "instruction": "Main title text",
+      "llm_can_invent": true,
+      "box": {
+        "x": 233,
+        "y": 146,
+        "width": 602,
+        "height": 90
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_2",
+      "type": "text",
+      "placeholder": "{{field_2}}",
+      "instruction": "Enter value for field_2",
+      "llm_can_invent": false,
+      "box": {
+        "x": 354,
+        "y": 907,
+        "width": 536,
+        "height": 145
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

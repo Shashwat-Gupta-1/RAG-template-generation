@@ -2,9 +2,16 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    openrouter_api_key: str = Field(validation_alias="OPENROUTER_API_KEY")
-    openrouter_model: str = Field(default="openai/gpt-4o-mini", validation_alias="OPENROUTER_MODEL")
-    free_model: str = Field(default="openai/gpt-4o-mini", validation_alias="FREE_MODEL")
+    groq_api_key: str = Field(default="", validation_alias="GROQ_API_KEY")
+    groq_model: str = Field(default="llama-3.3-70b-versatile", validation_alias="GROQ_MODEL")
+    groq_model_agent: str = Field(default="llama-3.3-70b-versatile", validation_alias="GROQ_MODEL_AGENT")
+    groq_model_single: str = Field(default="llama-3.3-70b-versatile", validation_alias="GROQ_MODEL_SINGLE")
+    groq_model_bulk: str = Field(default="llama-3.1-8b-instant", validation_alias="GROQ_MODEL_BULK")
+    groq_model_tags: str = Field(default="gemma2-9b-it", validation_alias="GROQ_MODEL_TAGS")
+    groq_model_fast: str = Field(default="llama-3.1-8b-instant", validation_alias="GROQ_MODEL_FAST")
+    openrouter_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
+    openrouter_model: str = Field(default="openrouter/free", validation_alias="OPENROUTER_MODEL")
+    free_model: str = Field(default="llama-3.3-70b-versatile", validation_alias="FREE_MODEL")
     rag_score_threshold: float = 0.55
     ambiguity_gap: float = 0.15
     max_prompt_length: int = 500

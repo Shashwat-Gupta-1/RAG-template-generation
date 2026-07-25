@@ -39,34 +39,54 @@ from backend.processing.field_split import (
 
 # ── HTTP call ────────────────────────────────────────────────────────────────
 
-def _call_llm(system: str, user: str, retries: int = 2) -> str:
+def _call_llm(
+    system: str,
+    user: str,
+    retries: int = 2,
+    model: Optional[str] = None,
+    max_tokens: Optional[int] = None,
+) -> str:
     """
-    Single OpenRouter API call with retry on rate limit.
+    Single LLM API call (Groq API preferred, or OpenRouter fallback) with retry on rate limit.
     Returns raw string content.
     """
+    import os
+    groq_key = settings.groq_api_key or os.getenv("GROQ_API_KEY", "")
+    if groq_key:
+        api_url = "https://api.groq.com/openai/v1/chat/completions"
+        api_key = groq_key
+        model_name = model or getattr(settings, "groq_model", "llama-3.3-70b-versatile")
+    else:
+        api_url = "https://openrouter.ai/api/v1/chat/completions"
+        api_key = settings.openrouter_api_key
+        model_name = model or settings.openrouter_model
+
     headers = {
-        "Authorization": f"Bearer {settings.openrouter_api_key}",
+        "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    payload = {
-        "model": settings.openrouter_model,
+    payload: Dict[str, Any] = {
+        "model": model_name,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user",   "content": user},
         ],
+        "response_format": {"type": "json_object"},
     }
+    if max_tokens:
+        payload["max_tokens"] = max_tokens
 
     for attempt in range(retries + 1):
         try:
             resp = requests.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                api_url,
                 headers=headers,
                 json=payload,
                 timeout=30,
             )
             if resp.status_code == 429:
                 wait = 2 ** attempt
-                print(f"[llm] Rate limited. Waiting {wait}s...")
+                print(f"[llm] Rate limited on {model_name}. Waiting {wait}s...")
                 time.sleep(wait)
                 continue
             resp.raise_for_status()
@@ -106,6 +126,7 @@ def fill_values(
     values: Dict[str, Any],
     prompt: str = "",
     field_instruction_overrides: Dict[str, str] = None,
+    is_bulk: bool = False,
 ) -> Dict[str, Any]:
     """
     Replace LLM sentinel values in the values dict with real content.
@@ -173,21 +194,31 @@ def fill_values(
         f"{json.dumps(field_instructions, indent=2, ensure_ascii=False)}"
     )
 
-    raw = _call_llm(system_prompt, user_message)
+    target_model = getattr(settings, "groq_model_bulk", "llama-3.1-8b-instant") if is_bulk else getattr(settings, "groq_model_single", "llama-3.3-70b-versatile")
+    token_cap = 250 if is_bulk else 400
 
     try:
-        llm_result = _parse_json(raw)
-    except (json.JSONDecodeError, ValueError):
-        # Retry once with a stricter instruction
-        stricter_system = system_prompt + " Your entire response must be valid JSON only. No other text."
-        raw = _call_llm(stricter_system, user_message)
-        llm_result = _parse_json(raw)
+        raw = _call_llm(system_prompt, user_message, model=target_model, max_tokens=token_cap)
+        try:
+            llm_result = _parse_json(raw)
+        except (json.JSONDecodeError, ValueError):
+            # Retry once with a stricter instruction
+            stricter_system = system_prompt + " Your entire response must be valid JSON only. No other text."
+            raw = _call_llm(stricter_system, user_message, model=target_model, max_tokens=token_cap)
+            llm_result = _parse_json(raw)
 
-    # Whitelist — only accept keys that exist in the overlay
-    valid_ids = _valid_field_ids(overlay)
-    for fid, val in llm_result.items():
-        if fid in valid_ids:
-            values[fid] = val if val not in (None, "") else None
+        # Whitelist — only accept keys that exist in the overlay
+        valid_ids = _valid_field_ids(overlay)
+        for fid, val in llm_result.items():
+            if fid in valid_ids:
+                values[fid] = val if val not in (None, "") else None
+
+    except Exception as exc:
+        print(f"[llm] LLM call rate-limited or failed ({exc}). Falling back to missing required inputs.")
+        # Mark all pending EXTRACT or INVENT fields as None/unfilled so missing input detection takes over cleanly
+        for fid, sentinel in list(values.items()):
+            if sentinel in (NEEDS_LLM_EXTRACT, NEEDS_LLM_INVENT):
+                values[fid] = None
 
     return values
 
@@ -196,13 +227,12 @@ def fill_invent_fields_only(
     overlay: Dict[str, Any],
     values: Dict[str, Any],
     context: str = "",
+    field_instruction_overrides: Dict[str, str] = None,
 ) -> Dict[str, Any]:
     """
     Bulk-specific shortcut.
     Only fills NEEDS_LLM_INVENT fields — skips EXTRACT fields.
     context = stringified row dict for creative context (e.g. name, branch).
-
-    Example: greeting_line gets invented using the person's name from context.
     """
     # Filter to only invent fields
     invent_only = {
@@ -220,7 +250,8 @@ def fill_invent_fields_only(
         if sentinel == NEEDS_LLM_EXTRACT:
             temp_values[fid] = ""  # treat as filled
 
-    return fill_values(overlay, temp_values, prompt=context)
+    return fill_values(overlay, temp_values, prompt=context, field_instruction_overrides=field_instruction_overrides, is_bulk=True)
+
 
 
 def generate_tags_and_description(
@@ -255,11 +286,12 @@ Rules:
     logger.info(f"generate_tags_and_description: category={category!r}")
 
     system_prompt = "Return ONLY valid JSON. No markdown, no explanation."
+    target_model = getattr(settings, "groq_model_tags", "gemma2-9b-it")
 
     for attempt in range(3):
         try:
             # Uses the robust, built-in network caller and JSON parser in llm.py
-            raw = _call_llm(system_prompt, prompt)
+            raw = _call_llm(system_prompt, prompt, model=target_model, max_tokens=300)
             result = _parse_json(raw)
             if "description" in result and "tags" in result:
                 return result
@@ -274,8 +306,8 @@ Rules:
     )
     return {
         "description": (
-            f"{category} themed visual template with "
-            f"{', '.join(field_ids)} overlay field"
+            f"Custom promotional {category} visual poster template with "
+            f"{', '.join(field_ids)} overlay fields designed for social media greetings, announcements, and marketing graphics."
         ),
-        "tags": [category, "greeting", "festival"]
+        "tags": [category, "greeting", "festival", "poster", "announcement"]
     }

@@ -1,0 +1,69 @@
+{
+  "template_id": "holi02",
+  "description": "Celebrate Holi with MS Fincap Pvt. Ltd. through a vibrant yet professional festive design tailored for corporate audiences.",
+  "type": "poster",
+  "tags": [
+    "Holi",
+    "festivity",
+    "corporate",
+    "MS Fincap",
+    "फाग",
+    "colorful",
+    "celebration",
+    "clean design",
+    "minimal",
+    "modern",
+    "festival",
+    "Indian festival"
+  ],
+  "base_image": "templates/holi/holi02/template.png",
+  "canvas": {
+    "width": 768,
+    "height": 768
+  },
+  "overlay_layers": [
+    {
+      "id": "headline",
+      "type": "text",
+      "placeholder": "{{headline}}",
+      "instruction": "Main title greeting line for poster",
+      "llm_can_invent": true,
+      "box": {
+        "x": 45,
+        "y": 45,
+        "width": 452,
+        "height": 68
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "user_photo",
+      "type": "image",
+      "placeholder": "{{user_photo}}",
+      "instruction": "Upload profile photo to place here",
+      "llm_can_invent": false,
+      "box": {
+        "x": 158,
+        "y": 169,
+        "width": 226,
+        "height": 226
+      },
+      "style": {
+        "shape": "circle",
+        "border_color": "#FFFFFF",
+        "border_width": 4
+      },
+      "editable": true
+    }
+  ]
+}

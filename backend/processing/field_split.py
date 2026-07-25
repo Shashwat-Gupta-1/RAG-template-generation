@@ -31,27 +31,44 @@ def get_overlay_fields(overlay: Dict[str, Any]) -> List[Dict[str, Any]]:
 def build_column_map(overlay: Dict[str, Any], excel_columns: List[str]) -> Dict[str, str]:
     """
     Match overlay field IDs to Excel column names.
-    Case-insensitive exact match.
+    Supports case-insensitive matching and image column alias resolution.
     Returns { field_id: excel_column_name }
-
-    Example:
-        overlay field: "name"
-        Excel columns: ["Name", "emp_id", "City"]
-        Result: {"name": "Name"}
     """
     column_map: Dict[str, str] = {}
     lower_columns = {col.lower(): col for col in excel_columns}
 
+    image_aliases = {"image", "photo", "pic", "picture", "logo", "qr", "qr_code", "pattern", "link", "url", "image_url"}
+
     for layer in get_overlay_fields(overlay):
         field_id = layer.get("id", "").strip()
-        if not field_id or layer.get("type") == "image":
+        if not field_id:
             continue
+
+        field_type = layer.get("type", "text")
+        field_id_lower = field_id.lower()
+
         # Try exact match (case-insensitive)
-        matched_col = lower_columns.get(field_id.lower())
+        matched_col = lower_columns.get(field_id_lower)
         if matched_col:
             column_map[field_id] = matched_col
+            continue
+
+        # If it's an image layer or image alias field, check image aliases in Excel
+        if field_type == "image" or field_id_lower in image_aliases:
+            for alias in ("image", "photo", "picture", "url", "link", "image_url", "pic", "logo"):
+                if alias in lower_columns:
+                    column_map[field_id] = lower_columns[alias]
+                    break
+
+    # Auto-match emp_id if present in Excel columns
+    if "emp_id" not in column_map:
+        for emp_alias in ("emp_id", "employee_id", "id", "emp_no", "sr_no", "code", "user_id"):
+            if emp_alias in lower_columns:
+                column_map["emp_id"] = lower_columns[emp_alias]
+                break
 
     return column_map
+
 
 
 def validate_excel_columns(
@@ -89,6 +106,19 @@ def validate_excel_columns(
     return errors
 
 
+import math
+
+def is_valid_value(val: Any) -> bool:
+    if val is None:
+        return False
+    if isinstance(val, float) and math.isnan(val):
+        return False
+    s = str(val).strip()
+    if not s or s.lower() in ("nan", "none", "null", "undefined", "<na>"):
+        return False
+    return True
+
+
 def split_row(
     overlay: Dict[str, Any],
     excel_row: Dict[str, Any],
@@ -120,14 +150,21 @@ def split_row(
 
         # ── Image field ───────────────────────────────────────────────────
         if field_type == "image":
+            excel_col = column_map.get(field_id)
+            if excel_col and excel_col in excel_row:
+                cell_value = excel_row[excel_col]
+                if is_valid_value(cell_value):
+                    values[field_id] = str(cell_value).strip()
+                    continue
             values[field_id] = NEEDS_IMAGE
             continue
+
 
         # ── Excel has the value ───────────────────────────────────────────
         excel_col = column_map.get(field_id)
         if excel_col and excel_col in excel_row:
             cell_value = excel_row[excel_col]
-            if cell_value is not None and str(cell_value).strip() != "":
+            if is_valid_value(cell_value):
                 values[field_id] = str(cell_value).strip()
                 continue
 
@@ -141,6 +178,7 @@ def split_row(
         values[field_id] = None
 
     return values
+
 
 
 def split_single(
@@ -201,6 +239,7 @@ def build_field_values_single(
     prompt: str,
     existing_values: Dict[str, Any] = None,
     caption_instruction: str = None,
+    field_prompts: Dict[str, str] = None,
 ) -> tuple[Dict[str, Any], List[str]]:
     """Compatibility helper for the single-poster route.
 
@@ -224,6 +263,11 @@ def build_field_values_single(
     field_instruction_overrides: Dict[str, str] = {}
     if caption_instruction and "caption" in values:
         field_instruction_overrides["caption"] = f"GENERATE — {caption_instruction}"
+
+    if field_prompts:
+        for fid, prompt_text in field_prompts.items():
+            if prompt_text and str(prompt_text).strip():
+                field_instruction_overrides[fid] = f"GENERATE — {str(prompt_text).strip()}"
 
     values = fill_values(template, values, prompt=prompt, field_instruction_overrides=field_instruction_overrides)
     missing = has_missing_required(template, values)
