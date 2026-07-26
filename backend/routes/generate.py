@@ -12,6 +12,7 @@ from backend.database.session import get_db
 from backend.auth.dependencies import get_current_user
 from backend.database.models import User
 from backend.services import history_service
+from backend.services.storage_service import storage_service
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -191,31 +192,35 @@ async def generate(
                     "trigger_phase2": True,
                 }
 
-            if (len(matches) > 1 and
-                    matches[0]["score"] - matches[1]["score"] < settings.ambiguity_gap):
-                best_score = matches[0]["score"]
-                ambiguous_matches = [
-                    m for m in matches
-                    if best_score - m["score"] < settings.ambiguity_gap
-                ]
-                # Check if the user explicitly mentioned exactly one of the folder names in the query
-                mentioned = [m for m in ambiguous_matches if m["folder"].lower() in prompt.lower()]
-                if len(mentioned) == 1:
-                    best = mentioned[0]
-                else:
-                    return {
-                        "status": "ambiguous",
-                        "matches": [
-                            {
-                                "folder": m["folder"],
-                                "display_name": m["display_name"],
-                                "score": m["score"],
-                            }
-                            for m in ambiguous_matches
-                        ],
-                    }
-            else:
-                best = matches[0]
+            # Score ALL candidate matches by token/keyword overlap with prompt + vector score
+            def _score_folder_match(m: dict) -> float:
+                fname = m["folder"].lower()
+                fname_space = fname.replace("_", " ")
+                p_lower = prompt.lower()
+
+                import re
+                p_words = set(re.findall(r"\w+", p_lower))
+                f_words = set(re.findall(r"\w+", fname.replace("_", " ")))
+                tags = m.get("tags") or []
+                if isinstance(tags, list):
+                    for t in tags:
+                        if isinstance(t, str):
+                            f_words.update(re.findall(r"\w+", t.lower()))
+
+                matching = p_words.intersection(f_words)
+                stop = {"a", "an", "the", "for", "of", "in", "on", "at", "to", "is", "with", "and", "or", "me", "my", "poster", "posters", "generate", "create"}
+                meaningful = matching - stop
+
+                # Exact folder name or space-separated folder match gets huge boost
+                if fname in p_lower or fname_space in p_lower:
+                    return 200.0 + len(fname) + len(meaningful) * 10.0
+
+                if meaningful:
+                    return float(len(meaningful)) * 20.0 + (m.get("score", 0) * 10.0) + len(fname)
+                return m.get("score", 0) * 10.0
+
+            matches.sort(key=lambda m: _score_folder_match(m), reverse=True)
+            best = matches[0]
 
             folder = best["folder"]
 
@@ -314,12 +319,14 @@ async def generate(
             role="user",
             content=prompt
         )
+        saved_output_url = await storage_service.save_output_image(out_path, subfolder="outputs")
+
         await history_service.add_message(
             db,
             conversation_id=conv.id,
             role="assistant",
             content="Generated poster successfully.",
-            output_file_path=out_path,
+            output_file_path=saved_output_url,
             template_used=template.get("template_id")
         )
 

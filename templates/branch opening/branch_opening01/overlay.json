@@ -1,0 +1,50 @@
+{
+  "template_id": "branch_opening01",
+  "description": "Announce new business location openings, ideal for local communities and customers.",
+  "type": "poster",
+  "tags": [
+    "newbranchopening",
+    "branchopening",
+    "newstore",
+    "openingevent",
+    "festiveopening",
+    "granth openings",
+    "branchinauguration",
+    "newbranchinauguration",
+    "shopopening",
+    "newstorelaunch",
+    "diwaliopening",
+    "storegrandinauguration"
+  ],
+  "base_image": "templates/branch opening/branch_opening01/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1280
+  },
+  "overlay_layers": [
+    {
+      "id": "branch_name",
+      "type": "text",
+      "placeholder": "{{branch_name}}",
+      "instruction": "branch name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 352,
+        "y": 640,
+        "width": 392,
+        "height": 120
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#4e4141",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

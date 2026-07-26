@@ -1,0 +1,91 @@
+{
+  "template_id": "makarsakranti02",
+  "description": "Custom promotional makar sakranti visual poster template with greeting, name, ms_fincap_family overlay fields designed for social media greetings, announcements, and marketing graphics.",
+  "type": "poster",
+  "tags": [
+    "makar sakranti",
+    "greeting",
+    "festival",
+    "poster",
+    "announcement"
+  ],
+  "base_image": "templates/makar sakranti/makarsakranti02/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1024
+  },
+  "overlay_layers": [
+    {
+      "id": "greeting",
+      "type": "text",
+      "placeholder": "{{greeting}}",
+      "instruction": "Main title greeting line for poster",
+      "llm_can_invent": true,
+      "box": {
+        "x": 75,
+        "y": 244,
+        "width": 602,
+        "height": 151
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#050505",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "name of employee",
+      "llm_can_invent": false,
+      "box": {
+        "x": 95,
+        "y": 467,
+        "width": 604,
+        "height": 145
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#100f0f",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "ms_fincap_family",
+      "type": "text",
+      "placeholder": "{{ms_fincap_family}}",
+      "instruction": "always write from ms fincap family",
+      "llm_can_invent": true,
+      "box": {
+        "x": 273,
+        "y": 944,
+        "width": 449,
+        "height": 57
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#1d1b1b",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

@@ -44,6 +44,7 @@ from backend.database.session import get_db
 from backend.auth.dependencies import get_current_user
 from backend.database.models import User, Conversation
 from backend.services import job_service, history_service
+from backend.services.storage_service import storage_service
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.processing.field_split import (
@@ -334,7 +335,9 @@ async def _run_bulk_job(
                         audit_buf.getvalue().encode("utf-8-sig")
                     )
 
-            await job_service.mark_done(db, uuid.UUID(job_id), zip_path=str(zip_path), download_url=f"/download/{job_id}")
+            saved_zip_path_or_url = await storage_service.save_bulk_zip(str(zip_path))
+            download_url = saved_zip_path_or_url if saved_zip_path_or_url.startswith("http") else f"/download/{job_id}"
+            await job_service.mark_done(db, uuid.UUID(job_id), zip_path=saved_zip_path_or_url, download_url=download_url)
 
         except Exception as exc:
             await job_service.mark_failed(db, uuid.UUID(job_id), error=str(exc))

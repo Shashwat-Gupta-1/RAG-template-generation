@@ -286,7 +286,9 @@ Rules:
     logger.info(f"generate_tags_and_description: category={category!r}")
 
     system_prompt = "Return ONLY valid JSON. No markdown, no explanation."
-    target_model = getattr(settings, "groq_model_tags", "gemma2-9b-it")
+    target_model = getattr(settings, "groq_model_tags", "llama-3.1-8b-instant")
+    if target_model == "gemma2-9b-it":
+        target_model = "llama-3.1-8b-instant"
 
     for attempt in range(3):
         try:

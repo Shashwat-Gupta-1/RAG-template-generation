@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -120,7 +120,15 @@ async def get_conversation_image(
             output_file_path = m.output_file_path
             break
 
-    if not output_file_path or not os.path.exists(output_file_path):
+    if not output_file_path:
+        raise HTTPException(status_code=404, detail="Image file not found")
+
+    # If output_file_path stored in DB is a Cloud URL (GCS/S3), redirect directly
+    if output_file_path.startswith(("http://", "https://")):
+        return RedirectResponse(url=output_file_path, status_code=307)
+
+    # Local file path check
+    if not os.path.exists(output_file_path):
         raise HTTPException(status_code=404, detail="Image file not found")
 
     return FileResponse(output_file_path, media_type="image/png")

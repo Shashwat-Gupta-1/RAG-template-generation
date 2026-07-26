@@ -9,6 +9,7 @@ from backend.database.session import get_db
 from backend.database.models import User, Conversation
 from backend.auth.dependencies import get_current_user
 from backend.services import history_service, agent_service
+from backend.services.storage_service import storage_service
 from backend.phase2.create_agent import _COMPILED_GRAPH
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -147,17 +148,30 @@ async def generate_image(
     await verify_ownership(db, body.conversation_id, current_user.id)
     
     # Call image generation
-    res = await agent_service.run_agent_generate_image(str(body.conversation_id))
+    try:
+        res = await agent_service.run_agent_generate_image(str(body.conversation_id))
+    except Exception as e:
+        err_msg = str(e)
+        if not err_msg.startswith("API error:"):
+            err_msg = f"API error: {err_msg}"
+        raise HTTPException(status_code=500, detail=err_msg)
     
     # Save assistant message showing the image path
+    local_img_path = res.get("image_path")
+    saved_image_url = await storage_service.save_output_image(
+        local_file_path=local_img_path,
+        subfolder="agent_outputs"
+    )
+
     await history_service.add_message(
         db,
         conversation_id=body.conversation_id,
         role="assistant",
         content=f"Generated template image.",
-        output_file_path=res["image_path"]
+        output_file_path=saved_image_url
     )
     
+    res["image_path"] = saved_image_url
     return res
 
 @router.get("/categories")

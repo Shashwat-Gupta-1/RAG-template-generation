@@ -1,4 +1,9 @@
 {
+  "meta": {
+    "version": "2.0",
+    "notes": "This file defines DEFAULTS ONLY. Nothing in this file is a hard rule except where a field literally says 'locked: true'. Every position, color, size, canvas choice, and mascot treatment described here can and should be overridden the moment the user says something different. The Creative Director and Prompt Builder agents must treat this as a starting point, not a constraint."
+  },
+
   "company": {
     "name": "MS Fincap Pvt. Ltd.",
     "industry": "NBFC",
@@ -8,33 +13,10 @@
   },
 
   "brand_identity": {
-    "personality": [
-      "Professional",
-      "Trustworthy",
-      "Premium",
-      "Reliable",
-      "Customer Friendly",
-      "Modern"
-    ],
-
-    "tone": [
-      "Corporate",
-      "Elegant",
-      "Minimal",
-      "Positive",
-      "Clean"
-    ],
-
-    "avoid": [
-      "Funny",
-      "Comic",
-      "Childish",
-      "Horror",
-      "Dark Gothic",
-      "Violent",
-      "Political",
-      "Religious Extremism"
-    ]
+    "personality": ["Professional", "Trustworthy", "Premium", "Reliable", "Customer Friendly", "Modern"],
+    "tone": ["Corporate", "Elegant", "Minimal", "Positive", "Clean"],
+    "avoid": ["Horror", "Dark Gothic", "Violent", "Political", "Religious Extremism"],
+    "note": "tone/personality are DEFAULTS for when the occasion doesn't imply otherwise. A festival greeting, an internal joke announcement, or a fun social post can and should shift tone (warmer, playful, festive) — infer this from occasion/purpose rather than always forcing 'corporate/minimal'."
   },
 
   "colors": {
@@ -44,194 +26,153 @@
     "surface": "#F7F7F7",
     "text_dark": "#1F2937",
     "text_light": "#FFFFFF",
-
-    "festival_override_allowed": true,
-    "preserve_brand_identity": true
+    "festival_or_occasion_override_allowed": true,
+    "preserve_brand_identity": true,
+    "override_note": "Occasion-specific palettes (e.g. pink/purple for Holi, red/cream for Christmas) are allowed and encouraged when the occasion calls for it — brand identity is preserved through the logo and at least one brand color accent remaining visible, not through forcing the exact primary/secondary hex everywhere."
   },
 
   "logo": {
     "enabled": true,
     "path": "brand_config/logo.png",
-    "position": "top-right",
-    "padding": 30,
-    "size": "small",
-
+    "default_position": "center",
+    "allowed_positions": ["center", "top-center", "top-left", "top-right", "bottom-center", "bottom-left", "bottom-right"],
+    "locked": false,
+    "size_guidance": "Small to medium — clearly legible and identifiable, but never the single dominant visual element of the poster unless the user explicitly requests a logo-forward design.",
+    "padding_guidance": "Comfortable clear space on all sides, roughly proportional to canvas size rather than a fixed pixel value.",
     "allow_rotation": false,
     "allow_recolor": false,
     "allow_crop": false,
-
-    "keep_clear_space": true
+    "keep_clear_space": true,
+    "override_note": "default_position is 'center' purely as a fallback when the user hasn't specified anything. If the user says top-left, top-right, or anything else, use that instead — this field is never a constraint on user intent."
   },
 
   "mascot": {
     "enabled": true,
-
     "path": "brand_config/mascot.png",
 
-    "description": "Friendly Indian financial advisor mascot wearing a red turban and white traditional attire.",
+    "identity_constants": {
+      "locked": true,
+      "description": "These traits define WHO the mascot is. They must be preserved exactly, unaltered, in every single generated poster that includes the mascot — this is what makes it recognizably the same character every time, the same way a real company mascot never changes species or face.",
+      "face": "Round, warm, friendly middle-aged Indian man's face",
+      "facial_hair": "Black handlebar-style mustache",
+      "eyewear": "Round gold-rimmed glasses",
+      "headwear_style": "Red-and-white patterned Rajasthani-style turban (bandhani/lehariya pattern) — always red and white, always this turban style, even if the rest of the outfit changes",
+      "build": "Stocky, cheerful build",
+      "reference_image": "brand_config/mascot.png — always pass this as a reference image to images.edit so the model anchors to the real asset rather than reinterpreting from text alone"
+    },
 
-    "allowed_positions": [
-      "bottom-right",
-      "bottom-left"
-    ],
+    "variable_attributes": {
+      "locked": false,
+      "description": "These CAN change per poster to match the occasion, as long as everything in identity_constants above stays untouched.",
+      "outfit": {
+        "default": "White kurta, navy-and-red striped stole, red dhoti-style pants, brown shoes",
+        "override_guidance": "Swap the outfit to match the occasion while keeping the identity constants — e.g. a Santa suit for Christmas, a graduation gown for a hiring/campus poster, sporty attire for a fitness/wellness campaign. The face, glasses, mustache, and turban silhouette must still read as the same mascot underneath any costume change."
+      },
+      "pose_and_gesture": {
+        "default": "Open-armed, welcoming gesture",
+        "override_guidance": "Change freely to match message tone — pointing at a headline, waving, holding a relevant prop (a gift sack, a certificate, a phone, a rupee note, a form), sitting, standing, mid-stride, etc."
+      },
+      "position_on_canvas": {
+        "default": "Bottom-left or bottom-right, whichever leaves the clearest open path for the headline text",
+        "override_guidance": "Fully adjustable — center-stage if the user wants the mascot to be the hero of the poster, or removed to a smaller corner if text density is high."
+      }
+    },
 
-    "maximum_canvas_coverage_percent": 20,
+    "use_when": ["Festival Posters", "Customer Greetings", "Financial Awareness", "Marketing Campaigns", "Social Media", "Internal Announcements"],
+    "avoid_when": ["Official Notices", "Legal Documents", "Interest Rate Charts", "Purely Technical/IT Posters"],
+    "override_note": "avoid_when is a default suggestion to keep serious/legal documents mascot-free by default — it is NOT a hard block. If the user explicitly asks for the mascot on one of these, include it."
+  },
 
-    "allow_flip": false,
-    "allow_crop": false,
-    "allow_rotation": false,
-
-    "use_when": [
-      "Festival Posters",
-      "Customer Greeting",
-      "Financial Awareness",
-      "Marketing Campaign",
-      "Social Media"
-    ],
-
-    "avoid_when": [
-      "Official Notices",
-      "Legal Documents",
-      "Interest Rate Charts",
-      "Technical Posters"
-    ]
+  "text_rendering": {
+    "mode": "dynamic",
+    "policy": "If the user has given exact copy for any element — a headline, a price, a date, a name, a phone number, a CTA line, anything — the generated prompt MUST instruct the model to render that exact text, verbatim, directly on the poster. gpt-image-2 renders legible text reliably at typical poster sizes; do not fall back to describing a blank placeholder for text the user has already given you.",
+    "when_no_copy_given": "Only describe a region as a blank placeholder shape when the user genuinely has NOT given wording for it yet (e.g. they want an editable template, or a name field that changes per recipient). Do not invent filler text for a slot the user left open unless that slot is explicitly marked as an AI-generate field (see creation_agent.copy_fields below) — in that case, write short, on-brand original copy yourself.",
+    "typography_guidance": "Headlines: bold, high-contrast sans-serif in a brand or occasion-appropriate color. Supporting text: clean sans-serif with strong contrast against its background. Festive/greeting headlines may use a script or display font when the occasion calls for a warmer tone. Always describe adequate spacing/contrast so text stays legible.",
+    "forbidden_regardless_of_copy": ["watermark text", "signature", "QR code", "garbled or misspelled text", "any text the user did not ask for and that isn't a short on-brand AI-generated line explicitly permitted for that slot"]
   },
 
   "design_rules": {
-    "preferred_style": [
-      "Modern",
-      "Flat Design",
-      "Vector Illustration",
-      "Corporate",
-      "Premium",
-      "Minimal"
-    ],
-
-    "preferred_layout": [
-      "Balanced Composition",
-      "Good White Space",
-      "Strong Visual Hierarchy",
-      "Clean Alignment"
-    ],
-
-    "lighting": [
-      "Soft",
-      "Professional",
-      "Premium"
-    ],
-
-    "background_style": [
-      "Minimal",
-      "Subtle Gradient",
-      "Corporate Pattern",
-      "Soft Abstract Shapes"
-    ]
+    "preferred_style": ["Modern", "Flat Design", "Vector Illustration", "Corporate", "Premium", "Minimal", "Photo-realistic (when using real customer/employee photo placeholders)"],
+    "preferred_layout": ["Balanced Composition", "Good White Space", "Strong Visual Hierarchy", "Clean Alignment"],
+    "lighting": ["Soft", "Professional", "Premium"],
+    "background_style": ["Minimal / Clean White", "Subtle Gradient", "Corporate Geometric Pattern", "Soft Abstract Shapes", "Watercolor Wash (for festive/warm occasions)", "Illustrated Scene / Iconography (for process, tech, or informational posters)"]
   },
 
+  "design_pattern_library": [
+    { "id": "hero_heading_block", "description": "A large bold primary heading with a smaller supporting line beneath it. The default anchor for almost any poster.", "use_when": "any poster with a clear single message" },
+    { "id": "icon_label_list", "description": "A vertical or two-column list of short icon+label rows.", "use_when": "feature lists, responsibilities, benefits, steps" },
+    { "id": "callout_box_double_border", "description": "A nested double-bordered rectangle (two brand colors) highlighting one key line — urgency, a note, or a warning.", "use_when": "CTAs, deadlines, fallback instructions, important notes" },
+    { "id": "personalization_field", "description": "A blank underline or bordered box (e.g. 'Dear ____') left open for a recipient's name to be filled per-send.", "use_when": "personalized greeting cards" },
+    { "id": "photo_collage_radial", "description": "Circular photo placeholders arranged around a central logo/icon, connected by dotted lines.", "use_when": "testimonial, trust, or social-proof posters" },
+    { "id": "footer_icon_strip", "description": "A horizontal row of 3-5 small icon+short-label chips closing out the poster.", "use_when": "summarizing key value props or a contact line" },
+    { "id": "illustration_anchor", "description": "One large custom illustration (a person, object, or scene) placed in a corner or as a hero visual, scaled to leave clear room for text.", "use_when": "hiring, help desk, product/feature launches, tech posters" },
+    { "id": "mascot_integration_zone", "description": "Reserved space for the brand mascot, outfit/pose chosen to match the message tone (see mascot.variable_attributes).", "use_when": "warm, customer-facing, or festive content" },
+    { "id": "decorative_corner_ornaments", "description": "Small themed decorative graphics in one or more canvas corners, scaled so they never obscure text (gifts/ribbons for offers, snowflakes/pine for winter, powder/mandala for spring festivals, circuit-lines for tech).", "use_when": "adds festivity/context without competing with the main message" },
+    { "id": "dual_column_comparison", "description": "Two labeled columns side by side, each with its own icon+text list.", "use_when": "before/after, what's-new vs why-it-matters, pros/cons" },
+    { "id": "bilingual_layout", "description": "The same structural pattern re-rendered in a regional language.", "use_when": "user requests Hindi or another regional-language version" },
+    { "id": "watercolor_wash_background", "description": "A soft color-wash or powder-splash background replacing the default corporate white, under festival/occasion color override.", "use_when": "Holi, Rakhi, or similarly colorful cultural festivals" }
+  ],
+
   "placeholders": {
-    "text": {
-      "style": "blank rounded rectangle",
-      "generate_placeholder_text": false
-    },
-
-    "photo": {
-      "style": "blank circular frame"
-    },
-
-    "logo": {
-      "style": "reserved logo area"
-    }
+    "text": { "style": "blank rounded rectangle", "use_only_when": "no exact copy has been provided by the user for that specific text slot — see text_rendering above" },
+    "photo": { "style": "blank circular or rounded-square frame", "note": "Always keep this as a genuine placeholder shape — never invent a fake photorealistic 'stand-in' person to fill a real customer/employee photo slot unless the user explicitly wants a generic illustrated figure rather than a real photo placeholder." },
+    "logo": { "style": "reserved logo area matching logo.default_position (or the user-specified position)" }
   },
 
   "canvas": {
-    "default": "1080x1080",
-
-    "supported": [
-      "1080x1080",
-      "1080x1350",
-      "1080x1920",
-      "1920x1080"
-    ]
+    "model": "gpt-image-2",
+    "notes": "gpt-image-2 accepts ANY resolution that satisfies the constraints below — it is NOT limited to a small fixed list of sizes. Compute width x height for whatever aspect ratio the occasion calls for, then validate against these constraints before calling the API.",
+    "constraints": {
+      "max_edge_px": 3840,
+      "edge_must_be_multiple_of_px": 16,
+      "max_long_to_short_edge_ratio": 3.0,
+      "min_total_pixels": 655360,
+      "max_total_pixels": 8294400
+    },
+    "quality_options": ["low", "medium", "high", "auto"],
+    "background_options": ["opaque", "auto"],
+    "background_note": "gpt-image-2 does NOT support transparent backgrounds. Never request background: 'transparent' for this model — that option only exists on gpt-image-1.5.",
+    "output_format_options": ["png", "jpeg", "webp"],
+    "aspect_ratio_presets": {
+      "square": "1024x1024",
+      "portrait_feed": "1024x1280",
+      "portrait_story": "1024x1536",
+      "landscape_banner": "1536x1024",
+      "square_2k": "2048x2048",
+      "landscape_2k": "2048x1152",
+      "portrait_4k": "2160x3840",
+      "landscape_4k": "3840x2160"
+    },
+    "default_preset": "portrait_story",
+    "resolution_rule": "These presets are convenience defaults ONLY — not a hardcoded whitelist. If the user asks for a size/ratio not listed above (or the occasion implies a different shape, e.g. a wide banner or a certificate-style landscape), compute the closest valid width x height directly from the constraints instead of forcing one of the presets."
   },
 
   "festival_rules": {
-    "allow_festival_colors": true,
-
-    "supported": [
-      "Holi",
-      "Diwali",
-      "Dussehra",
-      "Raksha Bandhan",
-      "Navratri",
-      "Ganesh Chaturthi",
-      "Janmashtami",
-      "Guru Nanak Jayanti",
-      "Christmas",
-      "New Year",
-      "Republic Day",
-      "Independence Day",
-      "Eid"
-    ],
-
+    "allow_festival_or_occasion_colors": true,
+    "known_examples": ["Holi", "Diwali", "Dussehra", "Raksha Bandhan", "Navratri", "Ganesh Chaturthi", "Janmashtami", "Guru Nanak Jayanti", "Christmas", "New Year", "Republic Day", "Independence Day", "Eid"],
+    "not_exhaustive_note": "This list is a set of known examples, not a restriction. Apply the exact same override logic to ANY occasion the user names — a regional festival, a company anniversary, a personal celebration — even if it isn't in this list.",
     "keep_logo_visible": true,
-
     "keep_brand_colors_present": true
   },
 
   "image_generation": {
-    "provider": "pollinations",
-
-    "model": "flux",
-
-    "always_include": [
-      "Professional",
-      "High Quality",
-      "Flat Design",
-      "Vector Illustration",
-      "Corporate Style",
-      "Balanced Composition",
-      "Modern Design",
-      "High Resolution",
-      "Minimal"
-    ],
-
-    "negative_prompt": [
-      "text",
-      "letters",
-      "numbers",
-      "typography",
-      "watermark",
-      "logo",
-      "signature",
-      "QR code",
-      "low quality",
-      "blurry",
-      "cropped",
-      "distorted",
-      "extra limbs",
-      "pixelated"
-    ]
+    "provider": "openai",
+    "model": "gpt-image-2",
+    "default_quality": "high",
+    "always_include": ["Professional", "High Quality", "Balanced Composition", "Modern Design", "High Resolution"],
+    "negative_prompt": ["watermark", "signature", "QR code", "low quality", "blurry", "cropped", "distorted", "extra limbs", "pixelated", "garbled or misspelled text"],
+    "note_on_text": "text/letters/numbers/typography are intentionally NOT in this negative_prompt list — gpt-image-2 is expected to render user-specified exact copy directly (see text_rendering). Only garbled/incorrect text is forbidden, not text itself."
   },
 
   "creation_agent": {
     "conversation_style": "Professional and Friendly",
-
     "ask_one_question_at_a_time": true,
-
-    "required_fields": [
-      "occasion",
-      "purpose",
-      "colour_palette",
-      "style",
-      "placeholders"
-    ],
-
-    "optional_fields": [
-      "audience",
-      "photo_requirement",
-      "branding",
-      "canvas_size",
-      "additional_instructions"
-    ]
+    "required_fields": ["occasion", "purpose", "audience"],
+    "optional_fields": ["colour_palette", "style", "canvas_preference", "logo_position", "mascot_position", "mascot_outfit_change", "copy_fields", "photo_requirement", "branding", "additional_instructions"],
+    "copy_fields": {
+      "description": "A free-form dict of exact text the user wants rendered verbatim on the poster, e.g. {\"headline\": \"LOGIN FEES: RS 1180/-\", \"subtext\": \"Offer valid 22nd-23rd Dec\", \"cta\": \"Download the app now\"}. Keys are whatever labels make sense for the poster; there is no fixed schema.",
+      "rule": "If a value is given here for a slot, render it verbatim per text_rendering.policy. If a slot is relevant but has no value here, follow text_rendering.when_no_copy_given."
+    },
+    "user_override_policy": "Any assumption, position, color, canvas size, mascot outfit/pose, or text-handling choice in this theme file can be overridden by explicit user instruction at any point in the conversation. Defaults exist only to reduce back-and-forth when the user hasn't stated a preference — they are never a ceiling on what the user can ask for."
   }
 }

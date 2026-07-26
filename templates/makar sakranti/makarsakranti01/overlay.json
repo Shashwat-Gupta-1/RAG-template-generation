@@ -1,0 +1,62 @@
+{
+  "template_id": "makarsakranti01",
+  "description": "Custom promotional makar sakranti visual poster template with headline overlay fields designed for social media greetings, announcements, and marketing graphics.",
+  "type": "poster",
+  "tags": [
+    "makar sakranti",
+    "greeting",
+    "festival",
+    "poster",
+    "announcement"
+  ],
+  "base_image": "templates/makar sakranti/makarsakranti01/template.png",
+  "canvas": {
+    "width": 768,
+    "height": 768
+  },
+  "overlay_layers": [
+    {
+      "id": "headline",
+      "type": "text",
+      "placeholder": "{{headline}}",
+      "instruction": "Main title greeting line for poster",
+      "llm_can_invent": true,
+      "box": {
+        "x": 45,
+        "y": 45,
+        "width": 452,
+        "height": 68
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "user_photo",
+      "type": "image",
+      "placeholder": "{{user_photo}}",
+      "instruction": "Upload profile photo to place here",
+      "llm_can_invent": false,
+      "box": {
+        "x": 158,
+        "y": 169,
+        "width": 226,
+        "height": 226
+      },
+      "style": {
+        "shape": "circle",
+        "border_color": "#FFFFFF",
+        "border_width": 4
+      },
+      "editable": true
+    }
+  ]
+}

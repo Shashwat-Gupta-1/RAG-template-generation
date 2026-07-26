@@ -133,27 +133,40 @@ function SingleGenerateContent() {
     setGalleryTemplates(null);
     setMissingFields(null);
 
+    // If this is a fresh search from the main prompt button (no overrides or field answers),
+    // clear stale folder, templateId, and overrides so vector search finds the right template.
+    const isFreshSearch = !overrideFolder && !overrideTemplateId && !additionalInputs && !regenCaptionPrompt;
+    if (isFreshSearch) {
+      setFolder(null);
+      setTemplateId(null);
+      setStoredValues({});
+      setLayoutOverrides({});
+      setStyleOverrides({});
+      setFieldPrompts({});
+      setCustomCaptionPrompt("");
+    }
+
     try {
       const formData = new FormData();
       formData.append("prompt", prompt.trim());
 
-      const targetFolder = overrideFolder || folder;
-      const targetTemplateId = overrideTemplateId || templateId;
+      const targetFolder = isFreshSearch ? undefined : (overrideFolder || folder);
+      const targetTemplateId = isFreshSearch ? undefined : (overrideTemplateId || templateId);
 
       if (targetFolder) formData.append("folder", targetFolder);
       if (targetTemplateId) formData.append("template_id", targetTemplateId);
       if (imageFile) formData.append("image", imageFile);
 
-      // Append Layout & Style overrides if non-empty
-      if (Object.keys(layoutOverrides).length > 0) {
+      // Append Layout & Style overrides if non-empty and not a fresh search
+      if (!isFreshSearch && Object.keys(layoutOverrides).length > 0) {
         formData.append("layout_overrides", JSON.stringify(layoutOverrides));
       }
 
-      if (Object.keys(styleOverrides).length > 0) {
+      if (!isFreshSearch && Object.keys(styleOverrides).length > 0) {
         formData.append("style_overrides", JSON.stringify(styleOverrides));
       }
 
-      if (Object.keys(fieldPrompts).length > 0) {
+      if (!isFreshSearch && Object.keys(fieldPrompts).length > 0) {
         formData.append("field_prompts", JSON.stringify(fieldPrompts));
       }
 
@@ -165,7 +178,7 @@ function SingleGenerateContent() {
       }
 
       // Merge stored layer text values and additional inputs
-      const mergedInputs = { ...storedValues, ...(additionalInputs || {}) };
+      const mergedInputs = isFreshSearch ? (additionalInputs || {}) : { ...storedValues, ...(additionalInputs || {}) };
       Object.entries(mergedInputs).forEach(([k, v]) => {
         if (v !== undefined && v !== null && v !== "") {
           formData.append(k, v);

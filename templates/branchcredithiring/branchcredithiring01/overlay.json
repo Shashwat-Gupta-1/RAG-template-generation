@@ -1,0 +1,67 @@
+{
+  "template_id": "branchcredithiring01",
+  "description": "Custom promotional branchcredithiring visual poster template with headline overlay fields designed for social media greetings, announcements, and marketing graphics.",
+  "type": "poster",
+  "tags": [
+    "branch credit hiring",
+    "branchcredithiring",
+    "branch",
+    "credit",
+    "hiring",
+    "recruitment",
+    "greeting",
+    "festival",
+    "poster",
+    "announcement"
+  ],
+  "base_image": "templates/branchcredithiring/branchcredithiring01/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1280
+  },
+  "overlay_layers": [
+    {
+      "id": "headline",
+      "type": "text",
+      "placeholder": "{{headline}}",
+      "instruction": "Main title greeting line for poster",
+      "llm_can_invent": true,
+      "box": {
+        "x": 279,
+        "y": 857,
+        "width": 297,
+        "height": 45
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "user_photo",
+      "type": "image",
+      "placeholder": "{{user_photo}}",
+      "instruction": "Upload profile photo to place here",
+      "llm_can_invent": false,
+      "box": {
+        "x": 628,
+        "y": 706,
+        "width": 343,
+        "height": 194
+      },
+      "style": {
+        "shape": "circle",
+        "border_color": "#FFFFFF",
+        "border_width": 4
+      },
+      "editable": true
+    }
+  ]
+}
