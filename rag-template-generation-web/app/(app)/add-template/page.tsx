@@ -293,11 +293,11 @@ export default function AddTemplatePage() {
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
           <LayoutGrid className="h-6 w-6 text-purple-400" />
-          Manual Template Registration & Zone Mapper
+          Save Templates
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
           Upload base PNG background, drag mouse directly on canvas to draw placeholder zones, render sample preview labels, and register template.
         </p>
       </div>
@@ -305,19 +305,19 @@ export default function AddTemplatePage() {
       <form onSubmit={handleSave} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Metadata Form */}
-          <div className="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
               Template Metadata
             </h3>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
                 Category folder name
               </label>
               <select
                 value={selectedCategoryOption}
                 onChange={(e) => setSelectedCategoryOption(e.target.value)}
-                className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-purple-500"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 text-xs focus:ring-2 focus:ring-purple-500"
               >
                 {existingCategories.map((cat) => (
                   <option key={cat} value={cat}>
@@ -330,7 +330,7 @@ export default function AddTemplatePage() {
 
             {selectedCategoryOption === "Create new folder..." && (
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                   Enter new category folder name
                 </label>
                 <input
@@ -338,13 +338,13 @@ export default function AddTemplatePage() {
                   value={customCategory}
                   onChange={(e) => setCustomCategory(e.target.value)}
                   placeholder="e.g. diwali"
-                  className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
                 Subfolder/Template base ID *
               </label>
               <input
@@ -353,12 +353,12 @@ export default function AddTemplatePage() {
                 value={templateName}
                 onChange={(e) => setTemplateName(e.target.value)}
                 placeholder="e.g. poster_001"
-                className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
                 Brief description
               </label>
               <textarea
@@ -366,17 +366,17 @@ export default function AddTemplatePage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Detailed description of template..."
-                className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
                 Base Template PNG Artwork *
               </label>
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-800 hover:border-purple-500/50 bg-slate-950/40 rounded-xl p-4 cursor-pointer text-center gap-2 flex flex-col items-center"
+                className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-purple-500/50 bg-slate-50 dark:bg-slate-950/40 rounded-xl p-4 cursor-pointer text-center gap-2 flex flex-col items-center"
               >
                 <Upload className="h-5 w-5 text-purple-400" />
                 {baseImageSrc ? (
@@ -414,7 +414,7 @@ export default function AddTemplatePage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2 transition-all text-xs disabled:opacity-50"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-slate-900 dark:text-white font-semibold rounded-xl shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2 transition-all text-xs disabled:opacity-50"
             >
               {loading ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -434,9 +434,9 @@ export default function AddTemplatePage() {
 
           {/* Right Mouse Canvas Drawing */}
           <div className="lg:col-span-8 space-y-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-2">
                   <Layers className="h-4 w-4 text-purple-400" />
                   Interactive Zone Canvas (Drag mouse to draw)
                 </h3>
@@ -460,7 +460,7 @@ export default function AddTemplatePage() {
 
             {/* Field Configuration Cards (Streamlit Architecture) */}
             <div className="space-y-4">
-              <h3 className="text-sm font-bold text-white">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 {zones.length} box(es) placed. Configure below:
               </h3>
 
@@ -473,17 +473,17 @@ export default function AddTemplatePage() {
                   return (
                     <div
                       key={zoneKey}
-                      className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl"
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xl"
                     >
                       <div
                         onClick={() => toggleZoneExpand(zoneKey)}
-                        className="p-4 bg-slate-950/70 hover:bg-slate-800/80 cursor-pointer flex items-center justify-between border-b border-slate-800 transition-all"
+                        className="p-4 bg-slate-50 dark:bg-slate-950/70 hover:bg-slate-100 dark:bg-slate-800/80 cursor-pointer flex items-center justify-between border-b border-slate-200 dark:border-slate-800 transition-all"
                       >
                         <div className="flex items-center gap-3">
                           <span className="h-6 w-6 rounded-lg bg-purple-600/30 text-purple-300 font-bold text-xs flex items-center justify-center">
                             {idx + 1}
                           </span>
-                          <span className="font-semibold text-xs text-white">
+                          <span className="font-semibold text-xs text-slate-900 dark:text-white">
                             Field {idx + 1}: {z.id} ({z.type})
                           </span>
                         </div>
@@ -499,19 +499,19 @@ export default function AddTemplatePage() {
                             <Trash2 className="h-4 w-4" />
                           </button>
                           {isExpanded ? (
-                            <ChevronUp className="h-4 w-4 text-slate-400" />
+                            <ChevronUp className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                           ) : (
-                            <ChevronDown className="h-4 w-4 text-slate-400" />
+                            <ChevronDown className="h-4 w-4 text-slate-600 dark:text-slate-400" />
                           )}
                         </div>
                       </div>
 
                       {isExpanded && (
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900">
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-slate-900">
                           {/* Column 1 */}
                           <div className="space-y-4">
                             <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                 Field ID (must match Excel column name)
                               </label>
                               <input
@@ -520,12 +520,12 @@ export default function AddTemplatePage() {
                                 onChange={(e) =>
                                   updateZoneField(z.id, "id", e.target.value)
                                 }
-                                className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100"
+                                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                               />
                             </div>
 
                             <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                 Field type
                               </label>
                               <select
@@ -537,7 +537,7 @@ export default function AddTemplatePage() {
                                     e.target.value as "text" | "image"
                                   )
                                 }
-                                className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100"
+                                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                               >
                                 <option value="text">text</option>
                                 <option value="image">image</option>
@@ -545,7 +545,7 @@ export default function AddTemplatePage() {
                             </div>
 
                             <div>
-                              <label className="block text-xs font-semibold text-slate-300 mb-1">
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                 Instruction for AI
                               </label>
                               <input
@@ -559,7 +559,7 @@ export default function AddTemplatePage() {
                                     e.target.value
                                   )
                                 }
-                                className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100"
+                                className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                               />
                             </div>
 
@@ -575,11 +575,11 @@ export default function AddTemplatePage() {
                                     e.target.checked
                                   )
                                 }
-                                className="h-4 w-4 accent-purple-600 rounded border-slate-800 cursor-pointer"
+                                className="h-4 w-4 accent-purple-600 rounded border-slate-200 dark:border-slate-800 cursor-pointer"
                               />
                               <label
                                 htmlFor={`add_llmi_${z.id}`}
-                                className="text-xs text-slate-300 cursor-pointer"
+                                className="text-xs text-slate-700 dark:text-slate-300 cursor-pointer"
                               >
                                 AI can generate this if not provided
                               </label>
@@ -591,7 +591,7 @@ export default function AddTemplatePage() {
                             {isText ? (
                               <>
                                 <div>
-                                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                     Font
                                   </label>
                                   <select
@@ -603,7 +603,7 @@ export default function AddTemplatePage() {
                                         e.target.value
                                       )
                                     }
-                                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100"
+                                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                                   >
                                     <option value="Poppins">Poppins</option>
                                     <option value="NotoSans">NotoSans</option>
@@ -615,7 +615,7 @@ export default function AddTemplatePage() {
 
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                       Font size
                                     </label>
                                     <input
@@ -630,12 +630,12 @@ export default function AddTemplatePage() {
                                           parseInt(e.target.value) || 24
                                         )
                                       }
-                                      className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100"
+                                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                                     />
                                   </div>
 
                                   <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                       Min font size
                                     </label>
                                     <input
@@ -650,14 +650,14 @@ export default function AddTemplatePage() {
                                           parseInt(e.target.value) || 12
                                         )
                                       }
-                                      className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100"
+                                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                                     />
                                   </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">
                                   <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                       Weight
                                     </label>
                                     <select
@@ -669,7 +669,7 @@ export default function AddTemplatePage() {
                                           e.target.value
                                         )
                                       }
-                                      className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100"
+                                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                                     >
                                       <option value="bold">bold</option>
                                       <option value="normal">normal</option>
@@ -678,7 +678,7 @@ export default function AddTemplatePage() {
                                   </div>
 
                                   <div>
-                                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                       Align
                                     </label>
                                     <select
@@ -690,7 +690,7 @@ export default function AddTemplatePage() {
                                           e.target.value
                                         )
                                       }
-                                      className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100"
+                                      className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                                     >
                                       <option value="center">center</option>
                                       <option value="left">left</option>
@@ -700,7 +700,7 @@ export default function AddTemplatePage() {
                                 </div>
 
                                 <div>
-                                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                     Text colour
                                   </label>
                                   <div className="flex gap-2 items-center">
@@ -726,7 +726,7 @@ export default function AddTemplatePage() {
                                           e.target.value
                                         )
                                       }
-                                      className="flex-1 p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-slate-200"
+                                      className="flex-1 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200"
                                     />
                                   </div>
                                 </div>
@@ -734,7 +734,7 @@ export default function AddTemplatePage() {
                             ) : (
                               <>
                                 <div>
-                                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                     Shape
                                   </label>
                                   <select
@@ -746,7 +746,7 @@ export default function AddTemplatePage() {
                                         e.target.value
                                       )
                                     }
-                                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100"
+                                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100"
                                   >
                                     <option value="circle">circle</option>
                                     <option value="rectangle">rectangle</option>
@@ -754,7 +754,7 @@ export default function AddTemplatePage() {
                                 </div>
 
                                 <div>
-                                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                     Border width px
                                   </label>
                                   <input
@@ -769,12 +769,12 @@ export default function AddTemplatePage() {
                                         parseInt(e.target.value) || 0
                                       )
                                     }
-                                    className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100"
+                                    className="w-full p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100"
                                   />
                                 </div>
 
                                 <div>
-                                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                                     Border colour
                                   </label>
                                   <div className="flex gap-2 items-center">
@@ -800,7 +800,7 @@ export default function AddTemplatePage() {
                                           e.target.value
                                         )
                                       }
-                                      className="flex-1 p-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-slate-200"
+                                      className="flex-1 p-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-mono text-slate-800 dark:text-slate-200"
                                     />
                                   </div>
                                 </div>
@@ -816,12 +816,12 @@ export default function AddTemplatePage() {
             </div>
 
             {/* Sample Render Section */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
               <button
                 type="button"
                 onClick={handleRenderSamplePreview}
                 disabled={renderingSample}
-                className="w-full py-3.5 px-4 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-600/25 transition-all disabled:opacity-50"
+                className="w-full py-3.5 px-4 bg-purple-600 hover:bg-purple-500 text-slate-900 dark:text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-600/25 transition-all disabled:opacity-50"
               >
                 {renderingSample ? (
                   <RefreshCw className="h-4 w-4 animate-spin" />
@@ -832,14 +832,14 @@ export default function AddTemplatePage() {
               </button>
 
               {samplePreviewB64 && (
-                <div className="flex flex-col items-center gap-2 bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-2xl">
+                <div className="flex flex-col items-center gap-2 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl">
                   {/* eslint-disable-next-html-element-suppression */}
                   <img
                     src={samplePreviewB64}
                     alt="Sample Render Preview"
-                    className="max-h-[500px] w-auto object-contain rounded-lg border border-slate-800"
+                    className="max-h-[500px] w-auto object-contain rounded-lg border border-slate-200 dark:border-slate-800"
                   />
-                  <p className="text-[11px] text-slate-400 italic mt-1">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 italic mt-1">
                     Sample preview — field names shown as labels
                   </p>
                 </div>

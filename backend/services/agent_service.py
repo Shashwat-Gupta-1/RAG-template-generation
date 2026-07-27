@@ -36,5 +36,10 @@ async def run_agent_refine(conversation_id: str, refinement_request: str, previo
 
 async def run_agent_generate_image(conversation_id: str) -> Dict[str, Any]:
     agent = SessionAgent()
-    path = await agent.generate_image(conversation_id)
-    return {"image_path": path}
+    res = await agent.generate_image(conversation_id)
+    if isinstance(res, dict):
+        return {
+            "image_path": res.get("path"),
+            "method": res.get("method", "generate")
+        }
+    return {"image_path": res, "method": "generate"}

@@ -12,6 +12,7 @@ from backend.database.session import get_db
 from backend.auth.dependencies import get_current_user
 from backend.database.models import User
 from backend.services import history_service
+from backend.services.storage_service import storage_service
 
 import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -21,6 +22,70 @@ from processing.renderer import render_poster
 from config import settings
 
 router = APIRouter()
+
+
+@router.get("/template-thumbnail/{folder}/{template_id}")
+async def template_thumbnail(folder: str, template_id: str):
+    """Serve the template.png preview image for a given template."""
+    thumb_path = os.path.join(settings.templates_dir, folder, template_id, "template.png")
+    if not os.path.exists(thumb_path):
+        raise HTTPException(404, "Thumbnail not found.")
+    return FileResponse(thumb_path, media_type="image/png")
+
+
+@router.get("/templates/library")
+async def get_templates_library():
+    """Returns all categories and template metadata for the Template Library."""
+    categories = []
+    templates_dir = settings.templates_dir
+
+    if not os.path.exists(templates_dir):
+        return {"categories": []}
+
+    for folder_name in sorted(os.listdir(templates_dir)):
+        folder_path = os.path.join(templates_dir, folder_name)
+        if not os.path.isdir(folder_path):
+            continue
+
+        main_json_path = os.path.join(folder_path, "main.json")
+        display_name = folder_name.replace("_", " ").title()
+        if os.path.exists(main_json_path):
+            try:
+                with open(main_json_path, encoding="utf-8") as f:
+                    main_data = json.load(f)
+                    display_name = main_data.get("display_name", display_name)
+            except Exception:
+                pass
+
+        templates = load_all_templates_in_folder(folder_name)
+        template_items = []
+        for t in templates:
+            t_id = t.get("template_id", "default")
+            template_items.append({
+                "template_id": t_id,
+                "folder": folder_name,
+                "description": t.get("description", ""),
+                "thumbnail_url": f"/api/proxy/template-thumbnail/{folder_name}/{t_id}",
+                "canvas": t.get("canvas", {}),
+                "layers": [
+                    {
+                        "id": l.get("id"),
+                        "type": l.get("type", "text"),
+                        "llm_can_invent": l.get("llm_can_invent", False),
+                    }
+                    for l in (t.get("overlay_layers") or [])
+                    if l.get("id")
+                ]
+            })
+
+        if template_items:
+            categories.append({
+                "folder": folder_name,
+                "display_name": display_name,
+                "templates": template_items,
+            })
+
+    return {"categories": categories}
 
 
 def _apply_style_overrides(template: dict, overrides: dict) -> dict:
@@ -191,31 +256,35 @@ async def generate(
                     "trigger_phase2": True,
                 }
 
-            if (len(matches) > 1 and
-                    matches[0]["score"] - matches[1]["score"] < settings.ambiguity_gap):
-                best_score = matches[0]["score"]
-                ambiguous_matches = [
-                    m for m in matches
-                    if best_score - m["score"] < settings.ambiguity_gap
-                ]
-                # Check if the user explicitly mentioned exactly one of the folder names in the query
-                mentioned = [m for m in ambiguous_matches if m["folder"].lower() in prompt.lower()]
-                if len(mentioned) == 1:
-                    best = mentioned[0]
-                else:
-                    return {
-                        "status": "ambiguous",
-                        "matches": [
-                            {
-                                "folder": m["folder"],
-                                "display_name": m["display_name"],
-                                "score": m["score"],
-                            }
-                            for m in ambiguous_matches
-                        ],
-                    }
-            else:
-                best = matches[0]
+            # Score ALL candidate matches by token/keyword overlap with prompt + vector score
+            def _score_folder_match(m: dict) -> float:
+                fname = m["folder"].lower()
+                fname_space = fname.replace("_", " ")
+                p_lower = prompt.lower()
+
+                import re
+                p_words = set(re.findall(r"\w+", p_lower))
+                f_words = set(re.findall(r"\w+", fname.replace("_", " ")))
+                tags = m.get("tags") or []
+                if isinstance(tags, list):
+                    for t in tags:
+                        if isinstance(t, str):
+                            f_words.update(re.findall(r"\w+", t.lower()))
+
+                matching = p_words.intersection(f_words)
+                stop = {"a", "an", "the", "for", "of", "in", "on", "at", "to", "is", "with", "and", "or", "me", "my", "poster", "posters", "generate", "create"}
+                meaningful = matching - stop
+
+                # Exact folder name or space-separated folder match gets huge boost
+                if fname in p_lower or fname_space in p_lower:
+                    return 200.0 + len(fname) + len(meaningful) * 10.0
+
+                if meaningful:
+                    return float(len(meaningful)) * 20.0 + (m.get("score", 0) * 10.0) + len(fname)
+                return m.get("score", 0) * 10.0
+
+            matches.sort(key=lambda m: _score_folder_match(m), reverse=True)
+            best = matches[0]
 
             folder = best["folder"]
 
@@ -293,6 +362,7 @@ async def generate(
                 "template_id": template["template_id"],
                 "folder": folder,
                 "overlay_values": overlay_values,
+                "overlay_layers": template.get("overlay_layers", []),
             }
 
         # ── Render ──────────────────────────────────────────────────
@@ -314,12 +384,15 @@ async def generate(
             role="user",
             content=prompt
         )
+
+        saved_output_url = await storage_service.save_output_image(out_path, subfolder="outputs")
+
         await history_service.add_message(
             db,
             conversation_id=conv.id,
             role="assistant",
             content="Generated poster successfully.",
-            output_file_path=out_path,
+            output_file_path=saved_output_url,
             template_used=template.get("template_id")
         )
 

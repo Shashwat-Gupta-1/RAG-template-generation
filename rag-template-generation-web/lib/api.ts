@@ -73,6 +73,21 @@ export async function deleteConversation(id: string): Promise<boolean> {
   }
 }
 
+export async function renameConversation(id: string, newTitle: string): Promise<Conversation | null> {
+  try {
+    const res = await fetch(`/api/proxy/history/conversations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: newTitle }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error("renameConversation failed:", err);
+    return null;
+  }
+}
+
 export async function generatePoster(formData: FormData): Promise<Response> {
   const res = await fetch("/api/proxy/generate", {
     method: "POST",

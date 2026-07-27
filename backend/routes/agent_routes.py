@@ -9,7 +9,8 @@ from backend.database.session import get_db
 from backend.database.models import User, Conversation
 from backend.auth.dependencies import get_current_user
 from backend.services import history_service, agent_service
-from backend.phase2.create_agent import _COMPILED_GRAPH
+from backend.services.storage_service import storage_service
+from backend.phase2.create_agent import _COMPILED_GRAPH, load_brand_theme
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -31,12 +32,11 @@ class RefinePromptRequest(BaseModel):
 class GenerateImageRequest(BaseModel):
     conversation_id: uuid.UUID
 
-async def verify_ownership(db: AsyncSession, conversation_id: uuid.UUID, user_id: uuid.UUID) -> Conversation:
-    result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
-    conv = result.scalars().first()
-    if not conv or conv.user_id != user_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found")
-    return conv
+async def verify_ownership(db: AsyncSession, conversation_id: uuid.UUID, user_id: uuid.UUID):
+    conv_data = await history_service.get_conversation_messages(db, conversation_id=conversation_id, user_id=user_id)
+    if not conv_data:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conv_data["conversation"]
 
 @router.post("/conversations")
 async def create_agent_convo(
@@ -68,13 +68,63 @@ async def get_agent_state(
     if not data:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    config = {"configurable": {"thread_id": str(conversation_id)}}
-    snapshot = await _COMPILED_GRAPH.aget_state(config)
-    values = snapshot.values if snapshot else {}
+    conv = data["conversation"]
+    assumptions = conv.assumptions or {}
+    generated_prompt = conv.generated_prompt or ""
+
+    # If DB doesn't have assumptions, check in-memory LangGraph checkpointer
+    if not any(assumptions.values() if isinstance(assumptions, dict) else []):
+        config = {"configurable": {"thread_id": str(conversation_id)}}
+        snapshot = await _COMPILED_GRAPH.aget_state(config)
+        values = snapshot.values if snapshot else {}
+        assumptions = values.get("assumptions") or {}
+        generated_prompt = values.get("generated_prompt") or generated_prompt
+
+    # Fallback: if state is still empty, reconstruct from conversation messages & save to DB!
+    if not any(assumptions.values() if isinstance(assumptions, dict) else []) and data.get("messages"):
+        db_messages = data["messages"]
+        # Filter messages to only system/chat relevant content
+        history = [
+            {"role": m.role, "content": m.content}
+            for m in db_messages
+            if m.role in ("user", "assistant") and m.content and not m.content.startswith("Generated template image") and not m.content.startswith("Template finalized")
+        ]
+        if history:
+            try:
+                config = {"configurable": {"thread_id": str(conversation_id)}}
+                res_analyze = await _COMPILED_GRAPH.ainvoke(
+                    {
+                        "action": "analyze",
+                        "brand_theme": load_brand_theme(),
+                        "conversation_history": history,
+                        "assumptions": {},
+                    },
+                    config=config,
+                )
+                assumptions = res_analyze.get("assumptions") or {}
+
+                res_build = await _COMPILED_GRAPH.ainvoke(
+                    {
+                        "action": "build_prompt",
+                        "brand_theme": load_brand_theme(),
+                        "conversation_history": history,
+                        "assumptions": assumptions,
+                        "user_edits": "",
+                    },
+                    config=config,
+                )
+                generated_prompt = res_build.get("generated_prompt") or ""
+
+                # Save reconstructed state into DB so we never need to reconstruct again
+                await history_service.update_conversation_state(
+                    db, conv_uuid, assumptions=assumptions, generated_prompt=generated_prompt
+                )
+            except Exception as e:
+                print(f"[get_agent_state] Reconstruction error: {e}")
 
     return {
-        "assumptions": values.get("assumptions", {}),
-        "generated_prompt": values.get("generated_prompt", ""),
+        "assumptions": assumptions,
+        "generated_prompt": generated_prompt,
     }
 
 @router.post("/chat")
@@ -109,6 +159,14 @@ async def agent_chat(
         role="assistant",
         content=res["reply"]
     )
+
+    # Persist assumptions and prompt to DB
+    if res.get("assumptions") or res.get("generated_prompt"):
+        await history_service.update_conversation_state(
+            db, body.conversation_id,
+            assumptions=res.get("assumptions"),
+            generated_prompt=res.get("generated_prompt")
+        )
     
     return res
 
@@ -122,6 +180,12 @@ async def rebuild_prompt(
     await verify_ownership(db, body.conversation_id, current_user.id)
     
     res = await agent_service.run_agent_rebuild(str(body.conversation_id), body.assumptions, body.user_edits)
+    
+    await history_service.update_conversation_state(
+        db, body.conversation_id,
+        assumptions=body.assumptions,
+        generated_prompt=res.get("generated_prompt")
+    )
     return res
 
 @router.post("/refine-prompt")
@@ -134,6 +198,11 @@ async def refine_prompt(
     await verify_ownership(db, body.conversation_id, current_user.id)
     
     res = await agent_service.run_agent_refine(str(body.conversation_id), body.refinement_request, body.previous_prompt)
+
+    await history_service.update_conversation_state(
+        db, body.conversation_id,
+        generated_prompt=res.get("generated_prompt")
+    )
     return res
 
 
@@ -147,17 +216,30 @@ async def generate_image(
     await verify_ownership(db, body.conversation_id, current_user.id)
     
     # Call image generation
-    res = await agent_service.run_agent_generate_image(str(body.conversation_id))
+    try:
+        res = await agent_service.run_agent_generate_image(str(body.conversation_id))
+    except Exception as e:
+        err_msg = str(e)
+        if not err_msg.startswith("API error:"):
+            err_msg = f"API error: {err_msg}"
+        raise HTTPException(status_code=500, detail=err_msg)
     
     # Save assistant message showing the image path
+    local_img_path = res.get("image_path")
+    saved_image_url = await storage_service.save_output_image(
+        local_file_path=local_img_path,
+        subfolder="agent_outputs"
+    )
+
     await history_service.add_message(
         db,
         conversation_id=body.conversation_id,
         role="assistant",
         content=f"Generated template image.",
-        output_file_path=res["image_path"]
+        output_file_path=saved_image_url
     )
     
+    res["image_path"] = saved_image_url
     return res
 
 @router.get("/categories")
@@ -365,6 +447,31 @@ async def save_template(
             category=cat_name,
             template_base_id=base_id
         )
+
+        if body.conversation_id:
+            try:
+                conv_uuid = uuid.UUID(str(body.conversation_id))
+                # Update conversation to set template_id and job_status so it's no longer a draft
+                res = await db.execute(select(history_service.Conversation).where(history_service.Conversation.id == conv_uuid))
+                conv = res.scalars().first()
+                if conv:
+                    conv.template_id = resolved_id
+                    conv.template_folder = cat_name
+                    conv.job_status = "completed"
+                    await db.commit()
+                
+                # Add message with output_file_path so it shows in the versions modal
+                import os
+                await history_service.add_message(
+                    db,
+                    conversation_id=conv_uuid,
+                    role="assistant",
+                    content=f"Template finalized and saved as {resolved_id}.",
+                    output_file_path=os.path.join(folder_path, "template.png").replace("\\", "/")
+                )
+            except Exception as hist_err:
+                print(f"[save_template] error updating history: {hist_err}")
+
         return {
             "status": "success",
             "message": f"Saved as `{resolved_id}` in `{cat_name}/` — searchable immediately!",
@@ -376,5 +483,4 @@ async def save_template(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed to save template: {e}")
-
 

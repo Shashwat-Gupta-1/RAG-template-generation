@@ -97,21 +97,22 @@ def generate_tags_from_query(query: str, valid_folders: list[dict]) -> str:
 
 The user will describe what poster they want. Your job is to:
 1. Identify which folder best matches their request
-2. Return the folder name + its most relevant tags and related contextual terms as a space-separated string
+2. Return the folder name(s) + display names + relevant tags and related contextual terms as a space-separated string
 
 Available folders and their tags:
 {folder_list}
 
 Rules:
 1. Return ONLY a space-separated string of words. No JSON, no explanation, no punctuation.
-2. Start by repeating the matched folder name(s) twice each (e.g. 'teej teej'). If the query matches multiple folders (e.g., 'rajasthan's festival' matches both 'teej' and 'gangaur'), repeat BOTH folder names twice (e.g., 'teej teej gangaur gangaur').
+2. Start by repeating the matched folder name(s) (and space-separated folder name if applicable, e.g. 'branchcredithiring branchcredithiring branch credit hiring') twice each. If the query matches multiple folders, repeat BOTH folder names twice.
 3. Special Case: Teej and Gangaur are both traditional Rajasthani festivals for women. If the user asks for a 'women's festival', 'beauty festival', 'festival of swings', 'puja/worship festival for women', or similar broad Rajasthani cultural terms without naming a specific one, it matches BOTH. You MUST repeat both folder names: 'teej teej gangaur gangaur'.
-4. You may include highly relevant contextual terms, synonyms, or associated concepts (e.g. 'festival', 'celebration', 'women', 'rajasthan', 'finance') to help semantic matching.
+4. You may include highly relevant contextual terms, synonyms, or associated concepts (e.g. 'festival', 'celebration', 'women', 'rajasthan', 'finance', 'hiring', 'recruitment') to help semantic matching.
 5. If the query is broad or matches multiple folders, do NOT return 'unknown'. Generate tags and repeat the folder names for all related folders.
 
 Example output: holi holi festival colours gulal spring celebration greeting
 Example output: hiring hiring job recruitment college campus fresher placement
-Example output: loan_offer loan_offer finance interest emi scheme nbfc"""
+Example output: loan_offer loan_offer finance interest emi scheme nbfc
+Example output: branchcredithiring branchcredithiring branch credit hiring recruitment job finance"""
 
     target_model = getattr(settings, "groq_model_fast", "llama-3.1-8b-instant") if (settings.groq_api_key or os.getenv("GROQ_API_KEY")) else settings.free_model
 
@@ -119,7 +120,7 @@ Example output: loan_offer loan_offer finance interest emi scheme nbfc"""
         try:
             response = _get_llm_client().chat.completions.create(
                 model=target_model,
-                max_tokens=150,
+                max_tokens=300,
                 temperature=0.0,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -135,7 +136,17 @@ Example output: loan_offer loan_offer finance interest emi scheme nbfc"""
 
             # Clean punctuation
             tag_line = tag_line.replace(",", " ").replace(".", " ").replace(":", " ").replace('"', ' ').replace("'", " ")
-            result = " ".join(tag_line.split())
+            raw_words = tag_line.split()
+
+            # Prevent token repetition loops (limit any single word to at most 2 occurrences)
+            word_counts = {}
+            deduped = []
+            for w in raw_words:
+                word_counts[w] = word_counts.get(w, 0) + 1
+                if word_counts[w] <= 2:
+                    deduped.append(w)
+
+            result = " ".join(deduped)
 
             print(f"LLM tags for '{query}': '{result}'")
 
@@ -256,15 +267,25 @@ def search_by_tags(tags_string: str, top_k: int = 3) -> list[dict]:
             "folder": folder_data["folder"],
             "display_name": folder_data["display_name"],
             "templates": folder_data["templates"],
+            "tags": folder_data.get("tags", []),
             "score": score
         })
 
-    # Boost folders that the LLM explicitly repeated twice in the tag string (e.g. "teej teej")
-    words = tags_string.lower().replace(",", " ").split()
+    # Boost folders that the LLM explicitly repeated twice in the tag string (e.g. "teej teej" or "makar sakranti makar sakranti")
+    import re
+    clean_tags_str = tags_string.lower().replace(",", " ")
+    tags_tokens = re.findall(r"\w+", clean_tags_str)
+
     boosted_folders = []
     for m in matches:
         folder_name = m["folder"].lower()
-        if words.count(folder_name) >= 2:
+        folder_space = folder_name.replace("_", " ")
+
+        # Count exact word matches in tags_string
+        exact_folder_count = tags_tokens.count(folder_name)
+        space_folder_count = clean_tags_str.count(folder_space) if "_" in folder_name or " " in folder_space else 0
+
+        if exact_folder_count >= 2 or space_folder_count >= 2:
             boosted_folders.append(m["folder"])
 
     if len(boosted_folders) == 1:

@@ -45,6 +45,7 @@ from backend.auth.dependencies import get_current_user
 from backend.database.models import User, Conversation
 from backend.services import job_service, history_service
 from sqlalchemy.ext.asyncio import AsyncSession
+from backend.services.storage_service import storage_service
 
 from backend.processing.field_split import (
     NEEDS_IMAGE,
@@ -256,6 +257,10 @@ async def _run_bulk_job(
                 # ── Build values dict for this row ─────────────────────────
                 values = split_row(overlay, row_dict, column_map, prompt=prompt)
 
+                if field_instruction_overrides:
+                    for fid in field_instruction_overrides:
+                        values[fid] = NEEDS_LLM_INVENT
+
                 if parsed_field_values:
                     for fid, val in parsed_field_values.items():
                         if val is not None and str(val).strip() != "":
@@ -334,7 +339,9 @@ async def _run_bulk_job(
                         audit_buf.getvalue().encode("utf-8-sig")
                     )
 
-            await job_service.mark_done(db, uuid.UUID(job_id), zip_path=str(zip_path), download_url=f"/download/{job_id}")
+            saved_zip_path_or_url = await storage_service.save_bulk_zip(str(zip_path))
+            download_url = saved_zip_path_or_url if saved_zip_path_or_url.startswith("http") else f"/download/{job_id}"
+            await job_service.mark_done(db, uuid.UUID(job_id), zip_path=saved_zip_path_or_url, download_url=download_url)
 
         except Exception as exc:
             await job_service.mark_failed(db, uuid.UUID(job_id), error=str(exc))
@@ -803,6 +810,10 @@ async def bulk_preview(
     first_row = df.iloc[0].to_dict() if df is not None and not df.empty else {}
     values = split_row(overlay, first_row, column_map, prompt=prompt)
 
+    if field_instruction_overrides:
+        for fid in field_instruction_overrides:
+            values[fid] = NEEDS_LLM_INVENT
+
     # Fill inventable fields via LLM if possible
     context = json.dumps(
         {k: v for k, v in first_row.items() if k != "emp_id"},
@@ -846,6 +857,14 @@ async def bulk_preview(
         image.convert("RGB").save(img_bytes, format="PNG")
         b64_str = base64.b64encode(img_bytes.getvalue()).decode("utf-8")
 
+        # Build a JSON-safe version of values (exclude binary image bytes)
+        overlay_values_safe = {}
+        for k, v in values.items():
+            if isinstance(v, bytes):
+                overlay_values_safe[k] = None  # image placeholder
+            elif v is not None and str(v) not in ("__LLM_EXTRACT__", "__LLM_INVENT__", "__IMAGE__"):
+                overlay_values_safe[k] = str(v)
+
         response_payload = {
             "preview_image": b64_str,
             "total_rows": len(df) if df is not None else 0,
@@ -855,6 +874,7 @@ async def bulk_preview(
             "overlay_layers": overlay.get("overlay_layers"),
             "column_map": column_map,
             "excel_columns": excel_cols,
+            "overlay_values": overlay_values_safe,
         }
         if errors:
             response_payload["errors"] = errors

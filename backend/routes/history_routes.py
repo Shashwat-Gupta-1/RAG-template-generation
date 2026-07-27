@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,7 +48,8 @@ class ConversationSchema(BaseModel):
     job_failed: int = 0
     job_zip_path: Optional[str] = None
     job_download_url: Optional[str] = None
-    job_error: Optional[str] = None
+    assumptions: Optional[dict] = None
+    generated_prompt: Optional[str] = None
     created_at: str
     updated_at: str
 
@@ -120,9 +121,36 @@ async def get_conversation_image(
             output_file_path = m.output_file_path
             break
 
-    if not output_file_path or not os.path.exists(output_file_path):
+    if not output_file_path:
         raise HTTPException(status_code=404, detail="Image file not found")
 
+    # If output_file_path stored in DB is a Cloud URL (GCS/S3), redirect directly
+    if output_file_path.startswith(("http://", "https://")):
+        return RedirectResponse(url=output_file_path, status_code=307)
+
+    # Local file path check
+    if not os.path.exists(output_file_path):
+        raise HTTPException(status_code=404, detail="Image file not found")
+
+    return FileResponse(output_file_path, media_type="image/png")
+
+@router.get("/messages/{message_id}/image")
+async def get_message_image(
+    message_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    msg = await history_service.get_message_by_id(db, message_id=message_id, user_id=current_user.id)
+    if not msg.output_file_path:
+        raise HTTPException(status_code=404, detail="Message has no image")
+        
+    output_file_path = msg.output_file_path
+    if output_file_path.startswith(("http://", "https://")):
+        return RedirectResponse(url=output_file_path, status_code=307)
+        
+    if not os.path.exists(output_file_path):
+        raise HTTPException(status_code=404, detail="Image file not found on disk")
+        
     return FileResponse(output_file_path, media_type="image/png")
 
 
@@ -133,6 +161,26 @@ async def delete_convo(
     current_user: User = Depends(get_current_user)
 ):
     await history_service.delete_conversation(db, conversation_id=conversation_id, user_id=current_user.id)
+
+
+class RenameConversationRequest(BaseModel):
+    title: str
+
+@router.patch("/conversations/{conversation_id}", response_model=ConversationSchema)
+async def rename_convo(
+    conversation_id: uuid.UUID,
+    body: RenameConversationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    await history_service.update_conversation_title(db, conversation_id, body.title)
+    
+    # Return updated conversation by fetching it
+    convs = await history_service.list_conversations(db, user_id=current_user.id, limit=50)
+    for c in convs:
+        if c.id == conversation_id:
+            return _serialize_convo(c)
+    raise HTTPException(status_code=404, detail="Conversation not found after rename")
 
 
 def _serialize_convo(c) -> dict:
@@ -151,6 +199,8 @@ def _serialize_convo(c) -> dict:
         "job_zip_path": c.job_zip_path,
         "job_download_url": c.job_download_url,
         "job_error": c.job_error,
+        "assumptions": c.assumptions,
+        "generated_prompt": c.generated_prompt,
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }

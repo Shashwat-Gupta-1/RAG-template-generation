@@ -1,0 +1,50 @@
+{
+  "template_id": "independence_day01",
+  "description": "India Independence Day professional design for greetings, celebrations, or patriotic events for businesses, organizations.",
+  "type": "poster",
+  "tags": [
+    "Independence Day",
+    "Indian Flag",
+    "Patriotic Salute",
+    "Happy Independence Day",
+    "Saluting the Spirit of Freedom",
+    "Independence",
+    "Freedom",
+    "India",
+    "Independence Day Greetings",
+    "Patriotic Celebrations",
+    "Salute to Freedom",
+    "Freedom Fighter"
+  ],
+  "base_image": "templates/independence_day/independence_day01/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1536
+  },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Enter value for name",
+      "llm_can_invent": false,
+      "box": {
+        "x": 133,
+        "y": 1105,
+        "width": 343,
+        "height": 116
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

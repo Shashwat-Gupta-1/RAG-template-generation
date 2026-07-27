@@ -30,8 +30,11 @@ async def startup() -> None:
 		await checkpointer.setup()
 
 	# Initialize database tables
+	from sqlalchemy import text
 	async with engine.begin() as conn:
 		await conn.run_sync(Base.metadata.create_all)
+		await conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS assumptions JSON;"))
+		await conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS generated_prompt TEXT;"))
 
 
 @app.get("/health")

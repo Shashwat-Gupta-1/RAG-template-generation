@@ -81,3 +81,7 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ path: str
   const params = await props.params;
   return forward(req, params.path);
 }
+export async function PATCH(req: NextRequest, props: { params: Promise<{ path: string[] }> }) {
+  const params = await props.params;
+  return forward(req, params.path);
+}

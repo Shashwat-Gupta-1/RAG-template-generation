@@ -1,18 +1,25 @@
 {
-  "template_id": "diwali02",
-  "description": "Custom promotional diwali visual poster template with headline overlay fields designed for social media greetings, announcements, and marketing graphics.",
+  "template_id": "1",
+  "description": "Commemorating India's Independence Day, for professional use, patriotic greetings, and corporate branding.",
   "type": "poster",
   "tags": [
-    "diwali",
-    "greeting",
-    "festival",
-    "poster",
-    "announcement"
+    "Independence Day",
+    "India's 75th Anniversary",
+    "Patriotic Greetings",
+    "Corporate Branding",
+    "Happy Independence",
+    "Freedom Salute",
+    "Saffron Background",
+    "Tri Color Celebration",
+    "Indian Festivals",
+    "National Holidays",
+    "Wish Card Design",
+    "Professional Graphics"
   ],
-  "base_image": "templates/diwali/diwali02/template.png",
+  "base_image": "templates/independence_day/1/template.png",
   "canvas": {
-    "width": 768,
-    "height": 768
+    "width": 1024,
+    "height": 1536
   },
   "overlay_layers": [
     {
@@ -22,10 +29,10 @@
       "instruction": "Main title greeting line for poster",
       "llm_can_invent": true,
       "box": {
-        "x": 45,
-        "y": 45,
-        "width": 452,
-        "height": 68
+        "x": 60,
+        "y": 60,
+        "width": 602,
+        "height": 90
       },
       "style": {
         "font_family": "Poppins",
@@ -46,10 +53,10 @@
       "instruction": "Upload profile photo to place here",
       "llm_can_invent": false,
       "box": {
-        "x": 158,
-        "y": 169,
-        "width": 226,
-        "height": 226
+        "x": 211,
+        "y": 226,
+        "width": 301,
+        "height": 301
       },
       "style": {
         "shape": "circle",

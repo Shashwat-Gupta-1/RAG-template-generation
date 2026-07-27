@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useTabState } from "@/context/TabStateContext";
 import { getConversationMessages, getConversationImage } from "@/lib/api";
 import {
   Sparkles,
@@ -11,25 +12,10 @@ import {
   AlertCircle,
   Image as ImageIcon,
   Layers,
-  Sliders,
-  Type,
-  Move,
-  Palette,
-  ChevronDown,
-  ChevronUp,
+  Check,
 } from "lucide-react";
-
-const FONT_OPTIONS = [
-  "(Template default)",
-  "Poppins",
-  "NotoSans",
-  "Arial",
-  "Times New Roman",
-  "Georgia",
-  "Calibri",
-  "Verdana",
-  "Trebuchet MS",
-];
+import ZoneEditor, { DrawnZone, RequiredField } from "@/components/ZoneEditor";
+import TemplateSelectionList from "@/components/TemplateSelectionList";
 
 interface OverlayLayer {
   id: string;
@@ -37,73 +23,118 @@ interface OverlayLayer {
   placeholder: string;
   box: { x: number; y: number; width: number; height: number };
   style?: Record<string, any>;
+  llm_can_invent?: boolean;
 }
 
 function SingleGenerateContent() {
   const searchParams = useSearchParams();
   const convoId = searchParams.get("id");
 
-  const [prompt, setPrompt] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [folder, setFolder] = useState<string | null>(null);
-  const [templateId, setTemplateId] = useState<string | null>(null);
-
   const router = useRouter();
+  const { state, updateState, resetState } = useTabState("single");
+
+  const prompt = state.prompt ?? "";
+  const setPrompt = (val: string) => updateState({ prompt: val });
+
+  const imageFile = state.imageFile ?? null;
+  const setImageFile = (val: File | null) => updateState({ imageFile: val });
+
+  const folder = state.folder ?? null;
+  const setFolder = (val: string | null) => updateState({ folder: val });
+
+  const templateId = state.templateId ?? null;
+  const setTemplateId = (val: string | null) => updateState({ templateId: val });
+
+  const posterUrl = state.posterUrl ?? null;
+  const setPosterUrl = (val: string | null) => updateState({ posterUrl: val });
+
+  const storedValues = state.storedValues ?? {};
+  const setStoredValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => {
+    updateState({ storedValues: typeof val === 'function' ? val(storedValues) : val });
+  };
+
+  const layers = state.layers ?? [];
+  const setLayers = (val: OverlayLayer[]) => updateState({ layers: val });
+
+  const layoutOverrides = state.layoutOverrides ?? {};
+  const setLayoutOverrides = (val: Record<string, Record<string, any>>) => updateState({ layoutOverrides: val });
+
+  const styleOverrides = state.styleOverrides ?? {};
+  const setStyleOverrides = (val: Record<string, Record<string, any>>) => updateState({ styleOverrides: val });
+
+  const customCaptionPrompt = state.customCaptionPrompt ?? "";
+  const setCustomCaptionPrompt = (val: string) => updateState({ customCaptionPrompt: val });
+
+  const fieldPrompts = state.fieldPrompts ?? {};
+  const setFieldPrompts = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldPrompts: typeof val === 'function' ? val(fieldPrompts) : val });
+
+  const zoneEditorMode = state.zoneEditorMode ?? false;
+  const setZoneEditorMode = (val: boolean) => updateState({ zoneEditorMode: val });
+
+  const hintField = state.hintField ?? null;
+  const setHintField = (val: string | null) => updateState({ hintField: val });
+
+  const assignedZoneFields = state.assignedZoneFields ?? new Set<string>();
+  const setAssignedZoneFields = (val: Set<string>) => updateState({ assignedZoneFields: val });
+
+  const zoneEditorKey = state.zoneEditorKey ?? 0;
+  const setZoneEditorKey = (val: number | ((prev: number) => number)) => updateState({ zoneEditorKey: typeof val === 'function' ? val(zoneEditorKey) : val });
+
+  const presetZones = state.presetZones ?? [];
+  const setPresetZones = (val: DrawnZone[]) => updateState({ presetZones: val });
+
+  // Local ephemeral states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Response States
-  const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [ambiguousMatches, setAmbiguousMatches] = useState<any[] | null>(null);
   const [galleryTemplates, setGalleryTemplates] = useState<any[] | null>(null);
   const [missingFields, setMissingFields] = useState<string[] | null>(null);
-
-  // Dynamic values, layers, and canvas geometry
-  const [storedValues, setStoredValues] = useState<Record<string, string>>({});
-  const [layers, setLayers] = useState<OverlayLayer[]>([]);
-  const [canvas, setCanvas] = useState<{ width: number; height: number }>({
-    width: 1024,
-    height: 1536,
-  });
-
-  // Overrides & Caption AI state
-  const [layoutOverrides, setLayoutOverrides] = useState<
-    Record<string, { x: number; y: number }>
-  >({});
-  const [styleOverrides, setStyleOverrides] = useState<
-    Record<string, Record<string, any>>
-  >({});
-  const [customCaptionPrompt, setCustomCaptionPrompt] = useState("");
-  const [fieldPrompts, setFieldPrompts] = useState<Record<string, string>>({});
-  const [isEditorExpanded, setIsEditorExpanded] = useState(true);
-
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load conversation history if convoId present
   useEffect(() => {
-    if (!convoId) return;
-
+    if (!convoId) {
+      // If we navigate to /generate without an ID, we should reset to a clean state.
+      // But only if we want to clear. Actually, the requirement says "never reset on tab switch".
+      // A tab switch to /generate (with no ID) might mean they clicked the sidebar "Single Poster" link.
+      // Let's only reset if they explicitly clicked "New" - wait, there is no "New" button.
+      // The bug says "Clicking a history item must completely replace".
+      // So if convoId IS present, we MUST reset first to clear previous state.
+      return;
+    }
+    
     const loadConvoHistory = async () => {
       try {
         setLoading(true);
         setError(null);
+        
+        // CLEAR entire session state first so previous poster's state doesn't leak
+        resetState();
+        
         const data = await getConversationMessages(convoId);
         if (data.messages && data.messages.length > 0) {
-          const userMsg = data.messages.find((m) => m.role === "user");
-          if (userMsg) setPrompt(userMsg.content);
-
+          const userMsg = data.messages.find((m: any) => m.role === "user");
+          if (userMsg) {
+            // We must update the state via the context update
+            updateState({ prompt: userMsg.content });
+          }
+          
           const assistantMsg = data.messages.find(
-            (m) => m.role === "assistant" && m.output_file_path
+            (m: any) => m.role === "assistant" && m.output_file_path
           );
           if (assistantMsg) {
             try {
               const blob = await getConversationImage(convoId);
-              setPosterUrl(URL.createObjectURL(blob));
+              updateState({ posterUrl: URL.createObjectURL(blob) });
             } catch (imgErr) {
               console.warn("Could not fetch conversation image output:", imgErr);
             }
           }
+          
+          // Note: if the backend returned layers/zones/templateId in data.conversation,
+          // we would populate them here. Currently it seems they aren't fully returned 
+          // or aren't used, but the crucial part is we cleared the OLD stale data.
         }
       } catch (err: any) {
         console.warn("Conversation history no longer exists:", err.message);
@@ -112,15 +143,17 @@ function SingleGenerateContent() {
         setLoading(false);
       }
     };
-
     loadConvoHistory();
   }, [convoId]);
 
+  // Main generate handler
   const handleGenerate = async (
     overrideFolder?: string,
     overrideTemplateId?: string,
     additionalInputs?: Record<string, string>,
-    regenCaptionPrompt?: string
+    regenCaptionPrompt?: string,
+    passedLayoutOverrides?: Record<string, any>,
+    passedStyleOverrides?: Record<string, any>
   ) => {
     if (!prompt.trim()) {
       setError("Please enter a prompt describing the poster you want to generate.");
@@ -132,53 +165,63 @@ function SingleGenerateContent() {
     setAmbiguousMatches(null);
     setGalleryTemplates(null);
     setMissingFields(null);
+    setZoneEditorMode(false);
+
+    // If this is a fresh search from the main prompt button (no overrides or field answers),
+    // clear stale folder, templateId, and overrides so vector search finds the right template.
+    const isFreshSearch = !overrideFolder && !overrideTemplateId && !additionalInputs && !regenCaptionPrompt;
+    if (isFreshSearch) {
+      setFolder(null);
+      setTemplateId(null);
+      setStoredValues({});
+      setLayoutOverrides({});
+      setStyleOverrides({});
+      setFieldPrompts({});
+      setCustomCaptionPrompt("");
+    }
 
     try {
       const formData = new FormData();
       formData.append("prompt", prompt.trim());
 
-      const targetFolder = overrideFolder || folder;
-      const targetTemplateId = overrideTemplateId || templateId;
+      const targetFolder = isFreshSearch ? undefined : (overrideFolder || folder);
+      const targetTemplateId = isFreshSearch ? undefined : (overrideTemplateId || templateId);
 
       if (targetFolder) formData.append("folder", targetFolder);
       if (targetTemplateId) formData.append("template_id", targetTemplateId);
       if (imageFile) formData.append("image", imageFile);
 
-      // Append Layout & Style overrides if non-empty
-      if (Object.keys(layoutOverrides).length > 0) {
-        formData.append("layout_overrides", JSON.stringify(layoutOverrides));
-      }
+      // Layout overrides (from zone drawing or passed directly)
+      const effectiveLayoutOverrides = passedLayoutOverrides ?? {};
+      const effectiveStyleOverrides = passedStyleOverrides ?? styleOverrides;
 
-      if (Object.keys(styleOverrides).length > 0) {
-        formData.append("style_overrides", JSON.stringify(styleOverrides));
+      // Append Layout & Style overrides if non-empty and not a fresh search
+      if (!isFreshSearch && Object.keys(effectiveLayoutOverrides).length > 0) {
+        formData.append("layout_overrides", JSON.stringify(effectiveLayoutOverrides));
       }
-
-      if (Object.keys(fieldPrompts).length > 0) {
+      if (!isFreshSearch && Object.keys(effectiveStyleOverrides).length > 0) {
+        formData.append("style_overrides", JSON.stringify(effectiveStyleOverrides));
+      }
+      if (!isFreshSearch && Object.keys(fieldPrompts).length > 0) {
         formData.append("field_prompts", JSON.stringify(fieldPrompts));
       }
 
-      // Caption AI prompt override if user clicked Regenerate Caption
       if (regenCaptionPrompt) {
         formData.append("caption_prompt", regenCaptionPrompt);
       } else if (customCaptionPrompt) {
         formData.append("caption_prompt", customCaptionPrompt);
       }
 
-      // Merge stored layer text values and additional inputs
-      const mergedInputs = { ...storedValues, ...(additionalInputs || {}) };
+      const mergedInputs = isFreshSearch ? (additionalInputs || {}) : { ...storedValues, ...(additionalInputs || {}) };
       Object.entries(mergedInputs).forEach(([k, v]) => {
         if (v !== undefined && v !== null && v !== "") {
           formData.append(k, v);
         }
       });
 
-
-      // Request with ?json=true to get metadata + base64 image
       const res = await fetch("/api/proxy/generate?json=true", {
         method: "POST",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: { Accept: "application/json" },
         body: formData,
       });
 
@@ -186,18 +229,14 @@ function SingleGenerateContent() {
 
       if (contentType.includes("application/json")) {
         const json = await res.json();
+
         if (json.status === "success") {
           setPosterUrl(`data:image/png;base64,${json.image}`);
-          if (json.canvas) setCanvas(json.canvas);
           if (json.overlay_layers) setLayers(json.overlay_layers);
           if (json.folder) setFolder(json.folder);
           if (json.template_id) setTemplateId(json.template_id);
-
           if (json.overlay_values) {
-            setStoredValues((prev) => ({
-              ...prev,
-              ...json.overlay_values,
-            }));
+            setStoredValues((prev) => ({ ...prev, ...json.overlay_values }));
           }
         } else if (json.status === "ambiguous") {
           setAmbiguousMatches(json.matches || []);
@@ -211,13 +250,38 @@ function SingleGenerateContent() {
           if (json.overlay_values) {
             setStoredValues((prev) => ({ ...prev, ...json.overlay_values }));
           }
+          if (json.overlay_layers) {
+            setLayers(json.overlay_layers);
+            const loadedZones: DrawnZone[] = json.overlay_layers
+              .filter((l: any) => l.box && l.box.width > 0)
+              .map((l: any) => ({
+                field_id: l.id,
+                x: l.box.x,
+                y: l.box.y,
+                width: l.box.width,
+                height: l.box.height,
+                font_family: l.style?.font_family || "Poppins",
+                font_size: l.style?.font_size || 32,
+                font_weight: l.style?.font_weight || "bold",
+                color: l.style?.color || "#FFFFFF",
+                align: (l.style?.align as any) || "center",
+                llm_can_invent: !!l.llm_can_invent,
+                type: l.type || "text"
+              }));
+            setPresetZones(loadedZones);
+            setAssignedZoneFields(new Set(loadedZones.map(z => z.field_id)));
+            setZoneEditorKey(prev => prev + 1);
+          } else {
+            setAssignedZoneFields(new Set());
+            setPresetZones([]);
+            setZoneEditorKey(prev => prev + 1);
+          }
+          setZoneEditorMode(true);
         } else if (json.status === "no_match") {
           setError(json.message || "No template found for your request.");
         } else if (json.detail) {
           setError(
-            typeof json.detail === "string"
-              ? json.detail
-              : JSON.stringify(json.detail)
+            typeof json.detail === "string" ? json.detail : JSON.stringify(json.detail)
           );
         }
       } else if (contentType.includes("image/")) {
@@ -234,52 +298,83 @@ function SingleGenerateContent() {
     }
   };
 
-  const handleLayoutChange = (lid: string, field: "x" | "y", val: number) => {
-    const origBox = layers.find((l) => l.id === lid)?.box || { x: 0, y: 0 };
-    setLayoutOverrides((prev) => ({
-      ...prev,
-      [lid]: {
-        x: field === "x" ? val : (prev[lid]?.x ?? origBox.x),
-        y: field === "y" ? val : (prev[lid]?.y ?? origBox.y),
-      },
-    }));
-  };
+  // Compute required fields for ZoneEditor (derive llm_can_invent from layers if available)
+  const requiredFieldsMeta: RequiredField[] = layers.map((layer) => ({
+    id: layer.id,
+    llm_can_invent: !!(layer as any).llm_can_invent,
+  }));
 
-  const handleStyleChange = (lid: string, key: string, val: any) => {
-    setStyleOverrides((prev) => {
-      const currentLayerStyle = { ...(prev[lid] || {}) };
-      if (val === "" || val === "(Template default)" || val === null) {
-        delete currentLayerStyle[key];
-      } else {
-        currentLayerStyle[key] = val;
+  // Called when user completes zone drawing and clicks Done
+  const handleZoneDone = useCallback(
+    (zones: DrawnZone[]) => {
+      // Validate that all required non-AI fields have values typed in
+      const emptyFields = requiredFieldsMeta.filter((f) => !f.llm_can_invent && !storedValues[f.id]?.trim());
+      if (emptyFields.length > 0) {
+        setError(`Please type the text value for: ${emptyFields.map(f => f.id.replace(/_/g, ' ')).join(', ')} in the left panel before generating.`);
+        return;
       }
-      return {
-        ...prev,
-        [lid]: currentLayerStyle,
-      };
-    });
-  };
+
+      const newLayoutOverrides: Record<string, any> = {};
+      const newStyleOverrides: Record<string, any> = {};
+
+      zones.forEach((z) => {
+        newLayoutOverrides[z.field_id] = {
+          x: z.x, y: z.y, width: z.width, height: z.height,
+        };
+        newStyleOverrides[z.field_id] = {
+          font_family: z.font_family,
+          font_size: z.font_size,
+          font_weight: z.font_weight,
+          color: z.color,
+          align: z.align,
+        };
+      });
+
+      setLayoutOverrides(newLayoutOverrides);
+      setStyleOverrides(newStyleOverrides);
+      setPresetZones(zones);
+      setZoneEditorKey(prev => prev + 1);
+      setZoneEditorMode(false);
+      // Pass overrides directly to avoid async state timing issues
+      handleGenerate(
+        folder || undefined,
+        templateId || undefined,
+        undefined,
+        undefined,
+        newLayoutOverrides,
+        newStyleOverrides
+      );
+    },
+    [folder, templateId, storedValues, fieldPrompts, customCaptionPrompt, imageFile, requiredFieldsMeta, layers]
+  );
+
+
+
+  const thumbnailUrl =
+    folder && templateId
+      ? `/api/proxy/template-thumbnail/${folder}/${templateId}`
+      : null;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
+    <div className="p-8 max-w-7xl mx-auto space-y-8 overflow-x-hidden">
+      {/* ── Header ── */}
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
           <Sparkles className="h-6 w-6 text-indigo-400" />
           Single Poster Generator & Live Editor
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Describe your poster, let AI select templates and write copy, then tweak positions and fonts with live preview.
+        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+          Describe your poster, let AI select templates and write copy, then draw zones to place your text with live preview.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Controls & Form */}
-        <div className="lg:col-span-6 space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
-            {/* Prompt Input */}
+        {/* ── Left Column ── */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Prompt + Photo + Generate */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
                 Poster Prompt / Event Description *
               </label>
               <textarea
@@ -287,28 +382,23 @@ function SingleGenerateContent() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="e.g., Generate a festive Happy Dussehra greeting poster with customer photo and wish line..."
-                className="w-full p-3.5 bg-slate-950/70 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
+                className="w-full p-3.5 bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
               />
             </div>
 
-            {/* Optional Photo Upload */}
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
                 User Photo (Optional)
               </label>
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-800 hover:border-indigo-500/50 bg-slate-950/40 rounded-xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2"
+                className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 bg-slate-50 dark:bg-slate-950/40 rounded-xl p-4 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2"
               >
                 <Upload className="h-5 w-5 text-slate-500" />
                 {imageFile ? (
-                  <span className="text-xs text-indigo-400 font-medium">
-                    {imageFile.name}
-                  </span>
+                  <span className="text-xs text-indigo-400 font-medium">{imageFile.name}</span>
                 ) : (
-                  <span className="text-xs text-slate-500">
-                    Click to attach photo for image placeholder zones
-                  </span>
+                  <span className="text-xs text-slate-500">Click to attach photo for image placeholder zones</span>
                 )}
                 <input
                   ref={fileInputRef}
@@ -320,45 +410,33 @@ function SingleGenerateContent() {
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               onClick={() => handleGenerate()}
               disabled={loading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 text-sm"
+              className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-slate-900 dark:text-white font-medium rounded-xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50 text-sm"
             >
               {loading ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Processing & Rendering Live Preview...</span>
-                </>
+                <><RefreshCw className="h-4 w-4 animate-spin" /><span>Processing & Rendering...</span></>
               ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  <span>Generate Poster</span>
-                </>
+                <><Sparkles className="h-4 w-4" /><span>Generate Poster</span></>
               )}
             </button>
           </div>
 
-          {/* Ambiguous Disambiguation Selection */}
+          {/* Ambiguous disambiguation */}
           {ambiguousMatches && ambiguousMatches.length > 0 && (
             <div className="bg-amber-950/30 border border-amber-800/50 rounded-2xl p-6 space-y-4">
               <h3 className="text-sm font-semibold text-amber-200 flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-amber-400" />
                 Multiple Matching Poster Categories Found
               </h3>
-              <p className="text-xs text-amber-300/80">
-                Please select the specific category for your poster:
-              </p>
+              <p className="text-xs text-amber-300/80">Please select the specific category for your poster:</p>
               <div className="space-y-2">
                 {ambiguousMatches.map((m: any) => (
                   <button
                     key={m.folder}
-                    onClick={() => {
-                      setFolder(m.folder);
-                      handleGenerate(m.folder);
-                    }}
-                    className="w-full text-left p-3 rounded-xl bg-slate-900 border border-amber-900/40 hover:border-amber-500 text-slate-200 hover:text-white flex items-center justify-between text-xs font-medium transition-all"
+                    onClick={() => { setFolder(m.folder); handleGenerate(m.folder); }}
+                    className="w-full text-left p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-900/40 hover:border-amber-500 text-slate-800 dark:text-slate-200 flex items-center justify-between text-xs font-medium transition-all"
                   >
                     <span>{m.display_name || m.folder}</span>
                     <span className="text-[10px] text-amber-400">Select →</span>
@@ -368,72 +446,76 @@ function SingleGenerateContent() {
             </div>
           )}
 
-          {/* Template Gallery Selection */}
-          {galleryTemplates && galleryTemplates.length > 0 && (
-            <div className="bg-indigo-950/30 border border-indigo-800/50 rounded-2xl p-6 space-y-4">
-              <h3 className="text-sm font-semibold text-indigo-200 flex items-center gap-2">
+          {/* Zone editor — field tracker */}
+          {zoneEditorMode && requiredFieldsMeta.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-indigo-500/40 rounded-2xl p-6 space-y-5 shadow-xl">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                 <Layers className="h-4 w-4 text-indigo-400" />
-                Select a Template Layout
+                Fields needed for this poster
               </h3>
-              <div className="grid grid-cols-2 gap-3">
-                {galleryTemplates.map((t: any) => (
-                  <button
-                    key={t.template_id}
-                    onClick={() => {
-                      setTemplateId(t.template_id);
-                      handleGenerate(folder || undefined, t.template_id);
-                    }}
-                    className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-indigo-500 text-left text-xs space-y-1 transition-all"
-                  >
-                    <p className="font-semibold text-slate-200">{t.template_id}</p>
-                    <p className="text-[10px] text-slate-400 line-clamp-2">
-                      {t.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Missing Fields Input Form */}
-          {missingFields && missingFields.length > 0 && (
-            <div className="bg-slate-900 border border-indigo-500/50 rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-indigo-400" />
-                Required Template Information
-              </h3>
-              <p className="text-xs text-slate-400">
-                This template requires specific details before rendering:
+              <div className="space-y-4">
+                {requiredFieldsMeta.map((field) => {
+                  const isAI = field.llm_can_invent;
+                  const hasZone = assignedZoneFields.has(field.id);
+                  return (
+                    <div key={field.id} className="flex items-start gap-3">
+                      {/* Status icon */}
+                      <div className={`mt-0.5 h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        isAI || hasZone ? "border-emerald-500 bg-emerald-500/20" : "border-slate-500"
+                      }`}>
+                        {(isAI || hasZone) && <Check className="h-2.5 w-2.5 text-emerald-400" />}
+                      </div>
+
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-800 dark:text-slate-200 capitalize flex items-center gap-2">
+                            {field.id.replace(/_/g, " ")}
+                            {isAI && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                AI
+                              </span>
+                            )}
+                          </span>
+                          <button
+                            onClick={() => setHintField(field.id)}
+                            className="text-[10px] text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
+                          >
+                            Draw zone →
+                          </button>
+                        </div>
+
+                        {/* Text value input */}
+                        {!isAI && (
+                          <input
+                            type="text"
+                            value={storedValues[field.id] || ""}
+                            onChange={(e) => setStoredValues({ ...storedValues, [field.id]: e.target.value })}
+                            placeholder={`Type ${field.id.replace(/_/g, " ")} value...`}
+                            className="w-full p-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* All zones placed success */}
+              {requiredFieldsMeta.every((f) => f.llm_can_invent || assignedZoneFields.has(f.id)) && (
+                <div className="flex items-center gap-2 text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 rounded-xl px-4 py-2.5 text-xs font-medium">
+                  <Check className="h-3.5 w-3.5" />
+                  All zones placed. Click "Done — Generate Poster" to continue.
+                </div>
+              )}
+
+              <p className="text-[10px] text-slate-500">
+                Draw zones on the poster preview → to place each field, then click Done.
               </p>
-              <div className="space-y-3">
-                {missingFields.map((field) => (
-                  <div key={field}>
-                    <label className="block text-[11px] font-semibold text-slate-300 uppercase tracking-wider mb-1">
-                      {field.replace(/_/g, " ")}
-                    </label>
-                    <input
-                      type="text"
-                      value={storedValues[field] || ""}
-                      onChange={(e) =>
-                        setStoredValues({ ...storedValues, [field]: e.target.value })
-                      }
-                      placeholder={`Enter ${field.replace(/_/g, " ")}`}
-                      className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-slate-100 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    />
-                  </div>
-                ))}
-              </div>
-              <button
-                onClick={() =>
-                  handleGenerate(folder || undefined, templateId || undefined)
-                }
-                className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl text-xs transition-all mt-2"
-              >
-                Submit & Render Poster
-              </button>
             </div>
           )}
 
+          {/* Error */}
           {error && (
             <div className="p-4 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-xs leading-relaxed">
               {error}
@@ -441,408 +523,103 @@ function SingleGenerateContent() {
           )}
         </div>
 
-        {/* Right Output & Interactive Live Editor */}
-        <div className="lg:col-span-6 flex flex-col space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-center items-center relative min-h-[450px] shadow-xl">
-            {loading ? (
-              <div className="flex flex-col items-center gap-3 text-slate-400">
-                <RefreshCw className="h-8 w-8 animate-spin text-indigo-500" />
-                <p className="text-xs font-medium">Rendering poster live preview...</p>
-              </div>
-            ) : posterUrl ? (
-              <div className="flex flex-col items-center gap-4 w-full">
-                <div className="relative rounded-xl overflow-hidden border border-slate-800 shadow-2xl max-h-[500px] flex justify-center">
-                  {/* eslint-disable-next-html-element-suppression */}
-                  <img
-                    src={posterUrl}
-                    alt="Generated Poster"
-                    className="max-h-[500px] w-auto object-contain rounded-xl"
-                  />
+        {/* ── Right Column ── */}
+        <div className="lg:col-span-7 flex flex-col space-y-6">
+
+
+          {/* Zone Editor — replaces right panel when needs_input */}
+          {zoneEditorMode && thumbnailUrl ? (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-xl">
+              <ZoneEditor
+                key={zoneEditorKey}
+                initialZones={presetZones}
+                posterImageUrl={thumbnailUrl}
+                requiredFields={requiredFieldsMeta}
+                textValues={storedValues}
+                onDone={handleZoneDone}
+                onCancel={() => { setZoneEditorMode(false); setMissingFields(null); }}
+                hintField={hintField}
+                onHintFieldClear={() => setHintField(null)}
+                onFieldAssigned={(fid) =>
+                  setAssignedZoneFields((prev) => new Set([...prev, fid]))
+                }
+              />
+            </div>
+          ) : (
+            /* Normal poster preview */
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col justify-center items-center relative min-h-[450px] shadow-xl">
+              {loading ? (
+                <div className="flex flex-col items-center gap-3 text-slate-600 dark:text-slate-400">
+                  <RefreshCw className="h-8 w-8 animate-spin text-indigo-500" />
+                  <p className="text-xs font-medium">Rendering poster live preview...</p>
                 </div>
-                <a
-                  href={posterUrl}
-                  download="poster.png"
-                  className="py-2.5 px-5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-xl border border-slate-700 shadow-md text-xs flex items-center gap-2 transition-all"
-                >
-                  <Download className="h-4 w-4" />
-                  <span>Download High-Res PNG</span>
-                </a>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-slate-600 text-center p-6">
-                <ImageIcon className="h-12 w-12 stroke-[1.5]" />
-                <p className="text-xs font-medium text-slate-400">No poster generated yet</p>
-                <p className="text-[11px] text-slate-600 max-w-xs">
-                  Fill in the prompt on the left and click "Generate Poster" to view your result here.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Interactive Live Editor Panel */}
-          {layers.length > 0 && posterUrl && (
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
-              <button
-                onClick={() => setIsEditorExpanded(!isEditorExpanded)}
-                className="w-full flex items-center justify-between text-left focus:outline-none"
-              >
-                <div className="flex items-center gap-2">
-                  <Sliders className="h-4 w-4 text-indigo-400" />
-                  <h3 className="text-sm font-semibold text-white">
-                    Adjust Placeholder Positions & Styling
-                  </h3>
-                </div>
-                {isEditorExpanded ? (
-                  <ChevronUp className="h-4 w-4 text-slate-400" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-slate-400" />
-                )}
-              </button>
-
-              {isEditorExpanded && (
-                <div className="space-y-6 pt-2 border-t border-slate-800/80">
-                  <p className="text-xs text-slate-400">
-                    Reposition placeholder zones using X/Y coordinate sliders, modify text contents directly, or ask AI to write custom captions.
-                  </p>
-
-                  <div className="space-y-5 max-h-[500px] overflow-y-auto pr-1">
-                    {layers
-                      .filter((layer) => !!layer.id)
-                      .map((layer) => {
-
-                        const lid = layer.id;
-                        const isText = layer.type === "text";
-                        const canInvent = !!(layer as any).llm_can_invent;
-                        const currentVal = storedValues[lid] || "";
-                        const currentLayout = layoutOverrides[lid] || layer.box;
-                        const currentStyle = styleOverrides[lid] || {};
-
-                        return (
-                          <div
-                            key={lid}
-                            className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-4"
-                          >
-                            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                              <span className="text-xs font-bold text-indigo-400 flex items-center gap-1.5 capitalize">
-                                {isText ? <Type className="h-3.5 w-3.5" /> : <ImageIcon className="h-3.5 w-3.5" />}
-                                Placeholder: {lid}
-                                {canInvent ? (
-                                  <span className="px-2 py-0.5 bg-indigo-950 text-indigo-400 border border-indigo-800 text-[10px] rounded-md font-medium capitalize">
-                                    AI Inventable
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-0.5 bg-slate-900 text-slate-400 border border-slate-800 text-[10px] rounded-md font-medium capitalize">
-                                    Fixed / Extracted
-                                  </span>
-                                )}
-                              </span>
-                              <span className="text-[10px] font-mono text-slate-500">
-                                ({currentLayout.x}px, {currentLayout.y}px)
-                              </span>
-                            </div>
-
-                            {/* Text / Caption Editing */}
-                            {isText && (
-                              <div className="space-y-3">
-                                {lid === "caption" ? (
-                                  <>
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                                        Section 1 — Type your own caption
-                                      </label>
-                                      <textarea
-                                        rows={2}
-                                        value={currentVal}
-                                        onChange={(e) =>
-                                          setStoredValues({
-                                            ...storedValues,
-                                            caption: e.target.value,
-                                          })
-                                        }
-                                        placeholder="Type exact caption text to place on poster..."
-                                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                                      />
-                                    </div>
-
-                                    <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-lg space-y-2">
-                                      <label className="block text-[11px] font-semibold text-slate-300">
-                                        Section 2 — Ask AI to write/regenerate caption
-                                      </label>
-                                      <div className="flex gap-2">
-                                        <input
-                                          type="text"
-                                          value={customCaptionPrompt}
-                                          onChange={(e) =>
-                                            setCustomCaptionPrompt(e.target.value)
-                                          }
-                                          placeholder="e.g. Write a festive greeting in Hindi"
-                                          className="flex-1 p-2 bg-slate-950 border border-slate-800 rounded-lg text-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                        <button
-                                          onClick={() => {
-                                            const nextStored = { ...storedValues };
-                                            delete nextStored.caption;
-                                            setStoredValues(nextStored);
-                                            handleGenerate(
-                                              folder || undefined,
-                                              templateId || undefined,
-                                              undefined,
-                                              customCaptionPrompt
-                                            );
-                                          }}
-                                          className="py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition-all"
-                                        >
-                                          Regenerate
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="space-y-3">
-                                    <div>
-                                      <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                                        Direct Custom Value ({lid})
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={currentVal}
-                                        onChange={(e) =>
-                                          setStoredValues({
-                                            ...storedValues,
-                                            [lid]: e.target.value,
-                                          })
-                                        }
-                                        placeholder={`Type exact custom text for ${lid}...`}
-                                        className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs focus:ring-1 focus:ring-indigo-500"
-                                      />
-                                      <p className="text-[10px] text-slate-500 mt-1">
-                                        Overrides AI generation if typed.
-                                      </p>
-                                    </div>
-
-                                    {/* AI Generation Instruction Prompt — ONLY for llm_can_invent == true */}
-                                    {(layer as any).llm_can_invent && (
-
-                                      <div className="border-t border-slate-800/80 pt-2">
-                                        <label className="block text-[11px] font-semibold text-slate-300 mb-1">
-                                          AI Generation Instruction Prompt ({lid})
-                                        </label>
-                                        <input
-                                          type="text"
-                                          value={fieldPrompts[lid] || ""}
-                                          onChange={(e) =>
-                                            setFieldPrompts({
-                                              ...fieldPrompts,
-                                              [lid]: e.target.value,
-                                            })
-                                          }
-                                          placeholder={`e.g. Write a creative ${lid} in Hindi...`}
-                                          className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-lg text-slate-100 text-xs focus:ring-1 focus:ring-indigo-500"
-                                        />
-                                        <p className="text-[10px] text-slate-500 mt-1">
-                                          Prompt for AI to generate content for this field.
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-
-                            {/* Position Sliders (X, Y) */}
-                            <div className="space-y-3 pt-2">
-                              <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
-                                <Move className="h-3 w-3" /> Position Coordinates (Pixels)
-                              </span>
-                              <div className="grid grid-cols-2 gap-4">
-                                {/* X Position */}
-                                <div className="space-y-1">
-                                  <div className="flex justify-between items-center text-[10px] text-slate-400">
-                                    <span>X Axis</span>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      max={canvas.width}
-                                      value={currentLayout.x}
-                                      onChange={(e) =>
-                                        handleLayoutChange(
-                                          lid,
-                                          "x",
-                                          parseInt(e.target.value) || 0
-                                        )
-                                      }
-                                      className="w-16 p-1 bg-slate-900 border border-slate-800 rounded text-center text-xs font-mono text-slate-200"
-                                    />
-                                  </div>
-                                  <input
-                                    type="range"
-                                    min={0}
-                                    max={canvas.width}
-                                    value={currentLayout.x}
-                                    onChange={(e) =>
-                                      handleLayoutChange(
-                                        lid,
-                                        "x",
-                                        parseInt(e.target.value) || 0
-                                      )
-                                    }
-                                    className="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
-                                  />
-                                </div>
-
-                                {/* Y Position */}
-                                <div className="space-y-1">
-                                  <div className="flex justify-between items-center text-[10px] text-slate-400">
-                                    <span>Y Axis</span>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      max={canvas.height}
-                                      value={currentLayout.y}
-                                      onChange={(e) =>
-                                        handleLayoutChange(
-                                          lid,
-                                          "y",
-                                          parseInt(e.target.value) || 0
-                                        )
-                                      }
-                                      className="w-16 p-1 bg-slate-900 border border-slate-800 rounded text-center text-xs font-mono text-slate-200"
-                                    />
-                                  </div>
-                                  <input
-                                    type="range"
-                                    min={0}
-                                    max={canvas.height}
-                                    value={currentLayout.y}
-                                    onChange={(e) =>
-                                      handleLayoutChange(
-                                        lid,
-                                        "y",
-                                        parseInt(e.target.value) || 0
-                                      )
-                                    }
-                                    className="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Typography Styling Overrides */}
-                            {isText && (
-                              <div className="space-y-3 pt-2">
-                                <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
-                                  <Palette className="h-3 w-3" /> Typography & Style Overrides
-                                </span>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                  {/* Font Family */}
-                                  <div>
-                                    <label className="block text-[10px] text-slate-400 mb-1">
-                                      Font Family
-                                    </label>
-                                    <select
-                                      value={currentStyle.font_family || "(Template default)"}
-                                      onChange={(e) =>
-                                        handleStyleChange(lid, "font_family", e.target.value)
-                                      }
-                                      className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500"
-                                    >
-                                      {FONT_OPTIONS.map((f) => (
-                                        <option key={f} value={f}>
-                                          {f}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
-
-                                  {/* Font Weight */}
-                                  <div>
-                                    <label className="block text-[10px] text-slate-400 mb-1">
-                                      Font Weight
-                                    </label>
-                                    <select
-                                      value={currentStyle.font_weight || "(Template default)"}
-                                      onChange={(e) =>
-                                        handleStyleChange(lid, "font_weight", e.target.value)
-                                      }
-                                      className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-200 focus:ring-1 focus:ring-indigo-500"
-                                    >
-                                      <option value="(Template default)">(Template default)</option>
-                                      <option value="bold">Bold</option>
-                                      <option value="regular">Normal</option>
-                                    </select>
-                                  </div>
-
-                                  {/* Font Size */}
-                                  <div>
-                                    <label className="block text-[10px] text-slate-400 mb-1">
-                                      Font Size (px)
-                                    </label>
-                                    <input
-                                      type="number"
-                                      placeholder="Default"
-                                      value={currentStyle.font_size || ""}
-                                      onChange={(e) =>
-                                        handleStyleChange(
-                                          lid,
-                                          "font_size",
-                                          e.target.value ? parseInt(e.target.value) : ""
-                                        )
-                                      }
-                                      className="w-full p-2 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-200"
-                                    />
-                                  </div>
-
-                                  {/* Color Picker */}
-                                  <div>
-                                    <label className="block text-[10px] text-slate-400 mb-1">
-                                      Text Color
-                                    </label>
-                                    <div className="flex gap-2 items-center">
-                                      <input
-                                        type="color"
-                                        value={currentStyle.color || "#FFFFFF"}
-                                        onChange={(e) =>
-                                          handleStyleChange(lid, "color", e.target.value)
-                                        }
-                                        className="h-8 w-10 bg-transparent border-0 cursor-pointer"
-                                      />
-                                      <input
-                                        type="text"
-                                        value={currentStyle.color || ""}
-                                        onChange={(e) =>
-                                          handleStyleChange(lid, "color", e.target.value)
-                                        }
-                                        placeholder="#FFFFFF"
-                                        className="flex-1 p-1.5 bg-slate-900 border border-slate-800 rounded text-xs font-mono text-slate-200"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+              ) : posterUrl ? (
+                <div className="flex flex-col items-center gap-4 w-full">
+                  <div className="relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl max-h-[600px] flex justify-center">
+                    <img
+                      src={posterUrl}
+                      alt="Generated Poster"
+                      className="max-h-[600px] w-auto object-contain rounded-xl"
+                    />
                   </div>
-
-                  {/* Apply Changes & Re-render Live Preview Button */}
-                  <button
-                    onClick={() =>
-                      handleGenerate(folder || undefined, templateId || undefined)
-                    }
-                    className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition-all mt-4"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    <span>Apply Adjustments & Re-render Live Preview</span>
-                  </button>
+                  <div className="flex gap-3">
+                    <a
+                      href={posterUrl}
+                      download="poster.png"
+                      className="py-2.5 px-5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-900 dark:text-white font-medium rounded-xl border border-slate-700 shadow-md text-xs flex items-center gap-2 transition-all"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Download High-Res PNG</span>
+                    </a>
+                    <button
+                      onClick={() => {
+                        setZoneEditorMode(true);
+                        setAssignedZoneFields(new Set());
+                      }}
+                      className="py-2.5 px-5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 font-medium rounded-xl border border-indigo-700/50 text-xs flex items-center gap-2 transition-all"
+                    >
+                      Reposition Zones
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-3 text-slate-600 text-center p-6">
+                  <ImageIcon className="h-12 w-12 stroke-[1.5]" />
+                  <p className="text-xs font-medium text-slate-600 dark:text-slate-400">No poster generated yet</p>
+                  <p className="text-[11px] text-slate-600 max-w-xs">
+                    Fill in the prompt on the left and click "Generate Poster" to view your result here.
+                  </p>
                 </div>
               )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Gallery thumbnail picker - FULL WIDTH */}
+      {galleryTemplates && galleryTemplates.length > 0 && (
+        <div className="bg-indigo-950/30 border border-indigo-800/50 rounded-2xl p-6 space-y-4">
+          <h3 className="text-sm font-semibold text-indigo-200 flex items-center gap-2">
+            <Layers className="h-4 w-4 text-indigo-400" />
+            Select a Template Layout
+          </h3>
+          <p className="text-xs text-indigo-300/70">
+            Click a template or "Use this Design" to generate your poster.
+          </p>
+          <TemplateSelectionList
+            templates={galleryTemplates}
+            folder={folder}
+            selectedId={templateId}
+            onSelect={(id) => {
+              setTemplateId(id);
+              handleGenerate(folder || undefined, id);
+            }}
+            themeColor="indigo"
+            actionText="Use this Design"
+            twoColumn={true}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -851,7 +628,7 @@ export default function SingleGeneratePage() {
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-slate-400 text-xs">
+        <div className="p-8 text-slate-600 dark:text-slate-400 text-xs">
           Loading poster generator...
         </div>
       }

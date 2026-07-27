@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from backend.database.session import Base
 
@@ -29,6 +29,10 @@ class Conversation(Base):
     template_folder = Column(String, nullable=True)
     template_id = Column(String, nullable=True)
     
+    # Creation Agent columns
+    assumptions = Column(JSON, nullable=True)
+    generated_prompt = Column(String, nullable=True)
+
     # Bulk job columns
     job_status = Column(String, nullable=True)  # "processing" | "done" | "failed" | None
     job_total = Column(Integer, nullable=True)

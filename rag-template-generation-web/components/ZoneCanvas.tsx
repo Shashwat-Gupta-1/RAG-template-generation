@@ -179,7 +179,7 @@ export default function ZoneCanvas({
   };
 
   return (
-    <div className="border-2 border-indigo-500/40 rounded-xl overflow-hidden bg-slate-950 flex justify-center items-center shadow-2xl relative cursor-crosshair">
+    <div className="border-2 border-indigo-500/40 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-950 flex justify-center items-center shadow-2xl relative cursor-crosshair">
       <Stage
         width={width}
         height={height}

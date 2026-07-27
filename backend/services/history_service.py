@@ -96,3 +96,29 @@ async def update_conversation_title(db: AsyncSession, conversation_id: uuid.UUID
     if conv:
         conv.title = new_title
         await db.commit()
+
+async def get_message_by_id(db: AsyncSession, message_id: uuid.UUID, user_id: uuid.UUID) -> Message:
+    result = await db.execute(select(Message).where(Message.id == message_id))
+    msg = result.scalars().first()
+    if not msg:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Message not found")
+    # Verify the message belongs to a conversation owned by this user
+    conv_result = await db.execute(select(Conversation).where(Conversation.id == msg.conversation_id))
+    conv = conv_result.scalars().first()
+    if not conv or conv.user_id != user_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Access denied")
+    return msg
+
+async def update_conversation_state(db: AsyncSession, conversation_id: uuid.UUID, assumptions: dict = None, generated_prompt: str = None):
+    res = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
+    conv = res.scalars().first()
+    if conv:
+        if assumptions is not None:
+            conv.assumptions = assumptions
+        if generated_prompt is not None:
+            conv.generated_prompt = generated_prompt
+        await db.commit()
+        await db.refresh(conv)
+    return conv
