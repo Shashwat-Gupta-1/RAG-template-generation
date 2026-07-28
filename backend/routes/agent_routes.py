@@ -71,14 +71,19 @@ async def get_agent_state(
     conv = data["conversation"]
     assumptions = conv.assumptions or {}
     generated_prompt = conv.generated_prompt or ""
+    prompt_versions = conv.prompt_versions or []
 
-    # If DB doesn't have assumptions, check in-memory LangGraph checkpointer
-    if not any(assumptions.values() if isinstance(assumptions, dict) else []):
+    # If DB doesn't have assumptions/versions, check in-memory LangGraph checkpointer
+    if not prompt_versions or not any(assumptions.values() if isinstance(assumptions, dict) else []):
         config = {"configurable": {"thread_id": str(conversation_id)}}
         snapshot = await _COMPILED_GRAPH.aget_state(config)
         values = snapshot.values if snapshot else {}
-        assumptions = values.get("assumptions") or {}
-        generated_prompt = values.get("generated_prompt") or generated_prompt
+        if not assumptions:
+            assumptions = values.get("assumptions") or {}
+        if not generated_prompt:
+            generated_prompt = values.get("generated_prompt") or ""
+        if not prompt_versions:
+            prompt_versions = values.get("prompt_versions") or []
 
     # Fallback: if state is still empty, reconstruct from conversation messages & save to DB!
     if not any(assumptions.values() if isinstance(assumptions, dict) else []) and data.get("messages"):
@@ -114,10 +119,11 @@ async def get_agent_state(
                     config=config,
                 )
                 generated_prompt = res_build.get("generated_prompt") or ""
+                prompt_versions = [{"version": 1, "label": "v1 (Initial Prompt)", "prompt": generated_prompt}]
 
                 # Save reconstructed state into DB so we never need to reconstruct again
                 await history_service.update_conversation_state(
-                    db, conv_uuid, assumptions=assumptions, generated_prompt=generated_prompt
+                    db, conv_uuid, assumptions=assumptions, generated_prompt=generated_prompt, prompt_versions=prompt_versions
                 )
             except Exception as e:
                 print(f"[get_agent_state] Reconstruction error: {e}")
@@ -125,6 +131,7 @@ async def get_agent_state(
     return {
         "assumptions": assumptions,
         "generated_prompt": generated_prompt,
+        "prompt_versions": prompt_versions,
     }
 
 @router.post("/chat")
@@ -161,11 +168,12 @@ async def agent_chat(
     )
 
     # Persist assumptions and prompt to DB
-    if res.get("assumptions") or res.get("generated_prompt"):
+    if res.get("assumptions") or res.get("generated_prompt") or res.get("prompt_versions"):
         await history_service.update_conversation_state(
             db, body.conversation_id,
             assumptions=res.get("assumptions"),
-            generated_prompt=res.get("generated_prompt")
+            generated_prompt=res.get("generated_prompt"),
+            prompt_versions=res.get("prompt_versions")
         )
     
     return res
@@ -184,7 +192,8 @@ async def rebuild_prompt(
     await history_service.update_conversation_state(
         db, body.conversation_id,
         assumptions=body.assumptions,
-        generated_prompt=res.get("generated_prompt")
+        generated_prompt=res.get("generated_prompt"),
+        prompt_versions=res.get("prompt_versions")
     )
     return res
 
@@ -201,7 +210,8 @@ async def refine_prompt(
 
     await history_service.update_conversation_state(
         db, body.conversation_id,
-        generated_prompt=res.get("generated_prompt")
+        generated_prompt=res.get("generated_prompt"),
+        prompt_versions=res.get("prompt_versions")
     )
     return res
 

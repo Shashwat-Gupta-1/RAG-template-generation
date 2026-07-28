@@ -1,0 +1,3 @@
+{
+  "/api/ai/generate-poster-text/route": "app/api/ai/generate-poster-text/route.js"
+}

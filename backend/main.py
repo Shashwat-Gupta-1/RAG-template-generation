@@ -1,12 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.staticfiles import StaticFiles
+import os
+
 from backend.database.session import engine, Base
 from backend.routes.bulk import router as bulk_router
 from backend.routes.generate import router as generate_router
 from backend.routes.auth_routes import router as auth_router
 from backend.routes.history_routes import router as history_router
 from backend.routes.agent_routes import router as agent_router
+from backend.routes.admin_routes import router as admin_router
 from backend.phase2.create_agent import _pool as langgraph_pool, get_checkpointer
 
 app = FastAPI(title="MS Fincap Template Generator")
@@ -19,6 +23,21 @@ app.add_middleware(
 	allow_headers=["*"],
 )
 
+# Serve generated output posters statically
+output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output")
+os.makedirs(output_dir, exist_ok=True)
+app.mount("/output", StaticFiles(directory=output_dir), name="output")
+
+# Serve workspace templates directory statically for template PNG images
+templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
+if os.path.exists(templates_dir):
+	app.mount("/templates", StaticFiles(directory=templates_dir), name="templates")
+
+# Serve brand assets statically for logo and branding
+brand_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "brand_config.py")
+if os.path.exists(brand_dir):
+	app.mount("/brand", StaticFiles(directory=brand_dir), name="brand")
+
 
 @app.on_event("startup")
 async def startup() -> None:
@@ -30,11 +49,10 @@ async def startup() -> None:
 		await checkpointer.setup()
 
 	# Initialize database tables
-	from sqlalchemy import text
 	async with engine.begin() as conn:
 		await conn.run_sync(Base.metadata.create_all)
-		await conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS assumptions JSON;"))
-		await conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS generated_prompt TEXT;"))
+		from sqlalchemy import text
+		await conn.execute(text("ALTER TABLE conversations ADD COLUMN IF NOT EXISTS prompt_versions JSON;"))
 
 
 @app.get("/health")
@@ -47,6 +65,7 @@ app.include_router(history_router)
 app.include_router(agent_router)
 app.include_router(generate_router)
 app.include_router(bulk_router)
+app.include_router(admin_router)
 
 if __name__ == "__main__":
     import uvicorn

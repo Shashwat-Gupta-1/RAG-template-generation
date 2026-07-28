@@ -1,0 +1,50 @@
+{
+  "template_id": "holi04",
+  "description": "A vibrant and colorful poster design to celebrate the festive occasion of Holi, suitable for family and children.",
+  "type": "poster",
+  "tags": [
+    "Holi",
+    "Festival",
+    "Festive",
+    "Colorful",
+    "Indian",
+    "Celebration",
+    "Family",
+    "Children",
+    "Diwali",
+    "Navratri",
+    "Colors",
+    "HoliGreeting"
+  ],
+  "base_image": "templates/holi/holi04/template.png",
+  "canvas": {
+    "width": 2048,
+    "height": 1152
+  },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "Main title greeting line for poster",
+      "llm_can_invent": true,
+      "box": {
+        "x": 196,
+        "y": 833,
+        "width": 1205,
+        "height": 180
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/ai/analyze-log/route": "/api/ai/analyze-log",
+  "/api/ai/generate-poster-text/route": "/api/ai/generate-poster-text",
+  "/api/health/route": "/api/health",
+  "/page": "/"
+}

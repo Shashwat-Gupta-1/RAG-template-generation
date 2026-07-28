@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Settings, Library, LayoutGrid, Wand2, History } from "lucide-react";
+import { Settings, LayoutGrid, Wand2, History } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function SettingsDropdown() {
@@ -59,22 +59,6 @@ export default function SettingsDropdown() {
             <div className="flex flex-col">
               <span className="font-semibold">User History</span>
               <span className="text-[10px] text-slate-400 font-normal">View past generations</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => {
-              setIsOpen(false);
-              router.push("/library");
-            }}
-            className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all flex items-center gap-2.5 group"
-          >
-            <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-              <Library className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-semibold">Library</span>
-              <span className="text-[10px] text-slate-400 font-normal">Browse all template collections</span>
             </div>
           </button>
 

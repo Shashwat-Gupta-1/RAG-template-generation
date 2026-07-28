@@ -34,7 +34,27 @@ async def list_conversations(db: AsyncSession, user_id: uuid.UUID, limit: int = 
         .order_by(Conversation.updated_at.desc())
         .limit(limit)
     )
-    return list(result.scalars().all())
+    convs = list(result.scalars().all())
+
+    if convs:
+        conv_ids = [c.id for c in convs]
+        msg_result = await db.execute(
+            select(Message.conversation_id)
+            .where(
+                Message.conversation_id.in_(conv_ids),
+                Message.output_file_path.isnot(None),
+                Message.output_file_path != ""
+            )
+        )
+        has_msg_image_set = set(msg_result.scalars().all())
+
+        for c in convs:
+            c.has_image = bool(
+                (c.template_folder and c.template_id) or
+                (c.id in has_msg_image_set) or
+                (c.job_status == "completed" or (c.job_completed or 0) > 0 or c.job_download_url)
+            )
+    return convs
 
 async def add_message(
     db: AsyncSession,
@@ -111,7 +131,13 @@ async def get_message_by_id(db: AsyncSession, message_id: uuid.UUID, user_id: uu
         raise HTTPException(status_code=403, detail="Access denied")
     return msg
 
-async def update_conversation_state(db: AsyncSession, conversation_id: uuid.UUID, assumptions: dict = None, generated_prompt: str = None):
+async def update_conversation_state(
+    db: AsyncSession,
+    conversation_id: uuid.UUID,
+    assumptions: dict = None,
+    generated_prompt: str = None,
+    prompt_versions: list = None
+):
     res = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conv = res.scalars().first()
     if conv:
@@ -119,6 +145,8 @@ async def update_conversation_state(db: AsyncSession, conversation_id: uuid.UUID
             conv.assumptions = assumptions
         if generated_prompt is not None:
             conv.generated_prompt = generated_prompt
+        if prompt_versions is not None:
+            conv.prompt_versions = prompt_versions
         await db.commit()
         await db.refresh(conv)
     return conv

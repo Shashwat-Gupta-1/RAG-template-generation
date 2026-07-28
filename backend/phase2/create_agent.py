@@ -35,7 +35,7 @@ if not logger.handlers:
 # ---------------------------------------------------------------------------
 # Model configuration
 # ---------------------------------------------------------------------------
-DEFAULT_MODEL = getattr(settings, "groq_model_agent", "") or getattr(settings, "groq_model", "") or getattr(settings, "openrouter_model", "llama-3.3-70b-versatile")
+DEFAULT_MODEL = getattr(settings, "groq_model_agent", "") or getattr(settings, "groq_model", "") or getattr(settings, "openrouter_model", "gpt-oss-120b")
 
 
 def call_llm(
@@ -44,16 +44,36 @@ def call_llm(
     temperature: float = 0.4,
     model: Optional[str] = None,
 ) -> str:
-    """Calls the configured LLM API (Groq API preferred, or OpenRouter) with retries."""
+    """Calls configured LLM API (Groq API preferred, with fallback to OpenRouter on 429 rate limits)."""
     groq_key = getattr(settings, "groq_api_key", "") or os.getenv("GROQ_API_KEY", "")
+    openrouter_key = os.getenv("OPENROUTER_API_KEY", "") or getattr(settings, "openrouter_api_key", "")
+    target_model = model or getattr(settings, "groq_model_agent", "") or getattr(settings, "groq_model", "gpt-oss-120b")
+
     if groq_key:
         client = openai.OpenAI(
             base_url="https://api.groq.com/openai/v1",
             api_key=groq_key,
         )
-        target_model = model or getattr(settings, "groq_model_agent", "") or getattr(settings, "groq_model", "llama-3.3-70b-versatile")
-    else:
-        openrouter_key = os.getenv("OPENROUTER_API_KEY", "") or getattr(settings, "openrouter_api_key", "")
+        for attempt in range(2):
+            try:
+                response = client.chat.completions.create(
+                    model=target_model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    messages=messages,
+                    timeout=30,
+                )
+                return response.choices[0].message.content or ""
+            except (openai.RateLimitError, Exception) as e:
+                err_msg = str(e).lower()
+                if "429" in err_msg or "rate limit" in err_msg or isinstance(e, openai.RateLimitError):
+                    logger.warning(f"Groq API 429 Rate limit hit for model {target_model}. Attempting OpenRouter fallback...")
+                    break
+                if attempt == 1:
+                    logger.warning(f"Groq API error ({e}). Attempting OpenRouter fallback...")
+                time.sleep(1)
+
+    if openrouter_key:
         client = openai.OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=openrouter_key,
@@ -62,29 +82,23 @@ def call_llm(
                 "X-Title": "MS Fincap Template System",
             },
         )
-        target_model = model or DEFAULT_MODEL
+        or_model = getattr(settings, "openrouter_model", "openai/gpt-oss-120b") or "openai/gpt-oss-120b"
+        for attempt in range(2):
+            try:
+                response = client.chat.completions.create(
+                    model=or_model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    messages=messages,
+                    timeout=30,
+                )
+                return response.choices[0].message.content or ""
+            except Exception as e:
+                if attempt == 1:
+                    raise RuntimeError(f"OpenRouter API error: {e}")
+                time.sleep(1)
 
-    for attempt in range(3):
-        try:
-            response = client.chat.completions.create(
-                model=target_model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                messages=messages,
-                timeout=30,
-            )
-            return response.choices[0].message.content or ""
-        except openai.RateLimitError:
-            time.sleep(2 ** (attempt + 1))
-        except openai.APIConnectionError as e:
-            if attempt == 2:
-                raise ConnectionError(f"Cannot reach LLM API: {e}")
-            time.sleep(2)
-        except Exception as e:
-            if attempt == 2:
-                raise e
-            time.sleep(1)
-    raise RuntimeError("Failed to call LLM after 3 attempts")
+    raise RuntimeError("Failed to call LLM: rate limit exceeded on primary provider and no secondary provider available.")
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +113,7 @@ _DEFAULT_THEME_V2_JSON = r"""
     "notes": "This file defines DEFAULTS ONLY. Nothing in this file is a hard rule except where a field literally says 'locked: true'. Every position, color, size, canvas choice, and mascot treatment described here can and should be overridden the moment the user says something different. The Creative Director and Prompt Builder agents must treat this as a starting point, not a constraint."
   },
   "company": {
-    "name": "MS Fincap Pvt. Ltd.",
+    "name": "MSFINCAP",
     "industry": "NBFC",
     "tagline": "Your Financial Navigator",
     "website": "https://www.msfincap.com",
@@ -125,16 +139,16 @@ _DEFAULT_THEME_V2_JSON = r"""
   "logo": {
     "enabled": true,
     "path": "brand_config/logo.png",
-    "default_position": "center",
-    "allowed_positions": ["center", "top-center", "top-left", "top-right", "bottom-center", "bottom-left", "bottom-right"],
+    "default_position": "top-center",
+    "allowed_positions": ["top-center", "center", "top-left", "top-right", "bottom-center", "bottom-left", "bottom-right"],
     "locked": false,
-    "size_guidance": "Small to medium — clearly legible and identifiable, but never the single dominant visual element of the poster unless the user explicitly requests a logo-forward design.",
-    "padding_guidance": "Comfortable clear space on all sides, roughly proportional to canvas size rather than a fixed pixel value.",
+    "size_guidance": "Small to medium — clearly legible and identifiable, placed at the absolute top center with zero margins (flush against the topmost horizontal border line Y=0 of the canvas) by default unless the user explicitly requests a different position or logo-forward design.",
+    "padding_guidance": "Zero margins, zero padding, zero gap — placed flush against the topmost pixel border line (Y=0) of the canvas with no top space or margin above the logo by default.",
     "allow_rotation": false,
     "allow_recolor": false,
     "allow_crop": false,
     "keep_clear_space": true,
-    "override_note": "default_position is 'center' purely as a fallback when the user hasn't specified anything. If the user says top-left, top-right, or anything else, use that instead — this field is never a constraint on user intent."
+    "override_note": "default_position is 'top-center' (placed at the top center without any margins) purely as a fallback when the user hasn't specified anything. If the user says top-left, top-right, center, or anything else, use that instead — this field is never a constraint on user intent."
   },
   "mascot": {
     "enabled": true,
@@ -171,6 +185,7 @@ _DEFAULT_THEME_V2_JSON = r"""
   },
   "text_rendering": {
     "mode": "dynamic",
+    "brand_name_rule": "When a poster is displayed, the name of the brand should always be written as MSFINCAP by default.",
     "policy": "If the user has given exact copy for any element, the generated prompt MUST instruct the model to render that exact text, verbatim, directly on the poster. Do not fall back to describing a blank placeholder for text the user has already given you.",
     "when_no_copy_given": "Only describe a region as a blank placeholder shape when the user genuinely has NOT given wording for it yet. Do not invent filler text for a slot the user left open unless that slot is explicitly marked as an AI-generate field.",
     "typography_guidance": "Headlines: bold, high-contrast sans-serif in a brand or occasion-appropriate color. Supporting text: clean sans-serif with strong contrast against its background. Festive/greeting headlines may use a script or display font when the occasion calls for a warmer tone.",
@@ -392,7 +407,7 @@ def _summarize_brand_info(brand_theme: Dict[str, Any]) -> str:
     constraints = canvas.get("constraints", {}) or {}
 
     return f"""
-Company: {company.get('name', 'MS Fincap Pvt. Ltd.')}
+Company: {company.get('name', 'MSFINCAP')}
 Industry: {company.get('industry', 'NBFC')}
 Tagline: {company.get('tagline', '')}
 Tone/Personality: {brand_theme.get('brand_identity', {}).get('tone', [])} / {brand_theme.get('brand_identity', {}).get('personality', [])}
@@ -401,8 +416,9 @@ Avoid: {brand_theme.get('brand_identity', {}).get('avoid', [])}
 Primary Color: {brand_theme.get('colors', {}).get('primary', '#D21414')}
 Secondary Color: {brand_theme.get('colors', {}).get('secondary', '#1A1A2E')}
 (Occasion color overrides are allowed — brand identity is preserved via the logo and at least one accent color, not by forcing these hex values everywhere.)
+Brand Name Display Rule: Whenever the poster displays the brand name, it must always be written as MSFINCAP by default.
 
-Logo default position (fallback only, freely overridable): {logo.get('default_position', 'center')}
+Logo default position (fallback only, freely overridable): {logo.get('default_position', 'top-center')} (at the top center without any margins)
 Logo allowed positions: {logo.get('allowed_positions', [])}
 
 Mascot identity_constants (NEVER change, in every poster that includes the mascot): {identity_lines}
@@ -437,6 +453,7 @@ class AgentState(TypedDict, total=False):
     clarification_question: Optional[str]
     can_proceed: bool
     generated_prompt: str
+    prompt_versions: List[Dict[str, Any]]
     error: Optional[str]
 
 
@@ -454,7 +471,7 @@ def _node_analyze(state: AgentState) -> AgentState:
 
     brand_info = _summarize_brand_info(brand_theme)
 
-    system_prompt = f"""You are a Senior Creative Director for {brand_theme.get('company', {}).get('name', 'MS Fincap')}.
+    system_prompt = f"""You are a Senior Creative Director for {brand_theme.get('company', {}).get('name', 'MSFINCAP')}.
 Your job is to analyze the user's poster/template request and conversation
 history, and infer the complete design schema (assumptions) as a professional
 designer would — including any exact wording the poster needs to display.
@@ -488,10 +505,7 @@ CONSTRAINTS:
    "A clean, solid, empty container box or badge shape, with a color matching the poster's palette, reserved for Employee Name").
 6. You MAY infer logo position, canvas shape/aspect ratio, and mascot
    outfit/pose/position from context without asking — these are covered by
-   defaults in BRAND THEME and are freely overridable, so pick the best fit
-   and let the user edit it afterward rather than pausing to ask. Any of the
-   presets in BRAND THEME may be used, or a custom ratio description if none
-   fit (e.g. "ultra-wide banner, roughly 3:1").
+   defaults in BRAND THEME (logo defaults to 'top-center' at the top center of the canvas without any margins, brand name defaults to 'MSFINCAP') and are freely overridable, so pick the best fit and let the user edit it afterward rather than pausing to ask.
 7. Show editable assumptions in the JSON output, filling out every field.
 8. Return structured JSON only. No explanation, no markdown text outside the
    JSON block.
@@ -512,7 +526,7 @@ RESPONSE FORMAT (MUST BE VALID JSON ONLY):
     "style": "The visual design style",
     "layout_composition": "Which design_pattern_library entries fit, and how they're arranged",
     "canvas_preference": "Name of a preset from BRAND THEME canvas presets, or a custom ratio description if none fit",
-    "logo_position": "Chosen logo position (defaults to the theme's logo default position if nothing implies otherwise)",
+    "logo_position": "Chosen logo position (defaults to 'top-center' at the top center of the poster canvas without any margins if nothing implies otherwise)",
     "mascot_position": "Chosen mascot position, or 'none' if avoid_when applies and the user hasn't overridden that",
     "mascot_outfit_or_pose_change": "Description of any occasion-appropriate outfit/pose change, or 'default' if unchanged",
     "copy_fields": {{ "<label>": "<exact text to render verbatim>", "...": "..." }},
@@ -591,7 +605,7 @@ def _node_build_prompt(state: AgentState) -> AgentState:
     conversation_history = state.get("conversation_history", [])
     mascot_conf = brand_theme.get("mascot", {})
 
-    system_prompt = f"""You are the Prompt Builder for {brand_theme.get('company', {}).get('name', 'MS Fincap')}.
+    system_prompt = f"""You are the Prompt Builder for {brand_theme.get('company', {}).get('name', 'MSFINCAP')}.
 Generate ONE production-quality image generation prompt for gpt-image-2 from:
 
 - theme (brand defaults — see text_rendering, mascot, logo, canvas sections):
@@ -612,6 +626,9 @@ composition (e.g. "a large bold heading reading exactly 'LOGIN FEES: RS
 1180/-'"). Do NOT describe copy_fields text as a blank placeholder — it has
 a known final value and gpt-image-2 should render it directly.
 
+BRAND NAME DISPLAY RULE:
+When a poster displays the brand name, the name of the brand MUST always be written as "MSFINCAP" verbatim by default.
+
 PLACEHOLDERS & EDITABLE FIELDS:
 Whenever assumptions.text_placeholders is non-empty (e.g. employee name,
 recipient name field, blank text box), describe a clean, solid, high-contrast,
@@ -628,10 +645,7 @@ copy_fields — those either get asked about upstream or left blank, never
 guessed here.
 
 LOGO:
-Describe the logo (brand_config/logo.png, passed as a reference image)
-placed at assumptions.logo_position (falls back to theme.logo.default_position
-if assumptions doesn't specify one). Never redraw, rotate, recolor, or crop
-the logo itself.
+Describe the logo (brand_config/logo.png, passed as a reference image) placed at the absolute top-center edge of the poster canvas with ZERO TOP MARGIN, ZERO TOP PADDING, and NO GAP OR SPACE above it (the top edge of the logo image box is positioned directly touching the topmost horizontal pixel border line Y=0 of the canvas frame: flush against the top edge). Never place margins, headers, background gaps, padding, or empty space above the logo. Matching assumptions.logo_position (defaults to 'top-center' flush at top edge without any margin above it, unless assumptions or user prompt explicitly specifies otherwise). Never redraw, rotate, recolor, or crop the logo itself.
 
 MASCOT (only if assumptions.mascot_position is not "none"):
 The brand mascot (brand_config/mascot.png, passed as a reference image) must
@@ -651,7 +665,7 @@ assume a fixed size — compute or select it based on the actual layout needs
 of this poster.
 
 ALWAYS FORBID in the generated prompt (per theme.image_generation.negative_prompt):
-watermark, signature, QR code, garbled or misspelled text, distorted logo.
+top margin above logo, padding above logo, gap above logo, space above logo, header margin above logo, top margin, watermark, signature, QR code, garbled or misspelled text, distorted logo.
 
 CRITICAL REQUIREMENT:
 Do NOT write any thinking process, reasoning, planning, inner monologue, or
@@ -690,11 +704,11 @@ def _node_refine_prompt(state: AgentState) -> AgentState:
     refinement_request = state.get("refinement_request", "")
     conversation_history = state.get("conversation_history", [])
 
-    system_prompt = f"""You are the Prompt Refiner for {brand_theme.get('company', {}).get('name', 'MS Fincap')}.
+    system_prompt = f"""You are the Prompt Refiner for {brand_theme.get('company', {}).get('name', 'MSFINCAP')}.
 Rewrite the previous prompt using the user's requested changes, while
 preserving everything in theme.mascot.identity_constants (if a mascot is
-present), the logo's integrity, and any copy_fields text that the
-refinement request does not ask to change.
+present), the logo's integrity (defaulting to absolute top-center placement with zero top margin/padding, flush against the topmost border line Y=0), and any copy_fields text that the
+refinement request does not ask to change (brand name written as 'MSFINCAP' by default).
 
 THEME:
 {json.dumps(brand_theme, indent=2)}
@@ -1168,7 +1182,7 @@ class SessionAgent:
             m["role"] == "assistant" for m in history
         ):
             greeting = (
-                "Hello! I am the MS Fincap Senior Creative Director. Let's design a template together. "
+                "Hello! I am the MSFINCAP Senior Creative Director. Let's design a template together. "
                 "What is the occasion and purpose for this template, and is there any exact text "
                 "(a price, date, name, or contact detail) it needs to include?"
             )
@@ -1225,12 +1239,30 @@ class SessionAgent:
                 "generating the image!"
             )
             new_history = (build_result.get("conversation_history") or history) + [{"role": "assistant", "content": reply}]
+            
+            existing_versions = list(result.get("prompt_versions") or state.values.get("prompt_versions") or [])
+            if generated_prompt:
+                if not existing_versions:
+                    existing_versions = [{
+                        "version": 1,
+                        "label": "v1 (Initial Prompt)",
+                        "prompt": generated_prompt,
+                    }]
+                elif existing_versions[-1].get("prompt") != generated_prompt:
+                    v_num = len(existing_versions) + 1
+                    existing_versions.append({
+                        "version": v_num,
+                        "label": f"{v_num} (Initial Prompt)",
+                        "prompt": generated_prompt,
+                    })
+
             await _COMPILED_GRAPH.aupdate_state(
                 config,
                 {
                     "conversation_history": new_history,
                     "assumptions": updated_assumptions,
                     "generated_prompt": generated_prompt,
+                    "prompt_versions": existing_versions,
                 },
             )
             return {
@@ -1239,6 +1271,7 @@ class SessionAgent:
                 "clarification_question": None,
                 "ready": True,
                 "generated_prompt": generated_prompt,
+                "prompt_versions": existing_versions,
             }
 
         return {
@@ -1248,10 +1281,19 @@ class SessionAgent:
             "ready": False,
         }
 
-    async def rebuild_prompt(self, conversation_id: str, assumptions: Dict[str, Any], user_edits: str = "") -> str:
+    async def rebuild_prompt(self, conversation_id: str, assumptions: Dict[str, Any], user_edits: str = "") -> Dict[str, Any]:
         config = {"configurable": {"thread_id": str(conversation_id)}}
         state = await _COMPILED_GRAPH.aget_state(config)
         history = state.values.get("conversation_history") or []
+        existing_versions = [dict(v) for v in (state.values.get("prompt_versions") or [])]
+        current_prompt = state.values.get("generated_prompt")
+
+        if not existing_versions and current_prompt:
+            existing_versions.append({
+                "version": 1,
+                "label": "v1 (Initial Prompt)",
+                "prompt": current_prompt,
+            })
 
         result = await _COMPILED_GRAPH.ainvoke(
             {
@@ -1264,15 +1306,41 @@ class SessionAgent:
             config=config,
         )
         generated_prompt = result.get("generated_prompt")
-        await _COMPILED_GRAPH.aupdate_state(config, {"assumptions": assumptions, "generated_prompt": generated_prompt})
-        return generated_prompt
 
-    async def refine_prompt(self, conversation_id: str, refinement_request: str, previous_prompt: Optional[str] = None) -> str:
+        v_num = len(existing_versions) + 1
+        user_note = f": {user_edits[:25]}..." if user_edits and len(user_edits) > 25 else (f": {user_edits}" if user_edits else "")
+        label = f"v{v_num} (Rebuilt from Assumptions{user_note})"
+
+        existing_versions.append({
+            "version": v_num,
+            "label": label,
+            "prompt": generated_prompt,
+        })
+
+        await _COMPILED_GRAPH.aupdate_state(
+            config,
+            {
+                "assumptions": assumptions,
+                "generated_prompt": generated_prompt,
+                "prompt_versions": existing_versions,
+            }
+        )
+        return {"generated_prompt": generated_prompt, "prompt_versions": existing_versions}
+
+    async def refine_prompt(self, conversation_id: str, refinement_request: str, previous_prompt: Optional[str] = None) -> Dict[str, Any]:
         config = {"configurable": {"thread_id": str(conversation_id)}}
         state = await _COMPILED_GRAPH.aget_state(config)
         history = state.values.get("conversation_history") or []
         current_stored_prompt = state.values.get("generated_prompt") or ""
         target_previous_prompt = previous_prompt.strip() if (previous_prompt and previous_prompt.strip()) else current_stored_prompt
+
+        existing_versions = [dict(v) for v in (state.values.get("prompt_versions") or [])]
+        if not existing_versions and target_previous_prompt:
+            existing_versions.append({
+                "version": 1,
+                "label": "v1 (Initial Prompt)",
+                "prompt": target_previous_prompt,
+            })
 
         result = await _COMPILED_GRAPH.ainvoke(
             {
@@ -1285,8 +1353,25 @@ class SessionAgent:
             config=config,
         )
         generated_prompt = result.get("generated_prompt")
-        await _COMPILED_GRAPH.aupdate_state(config, {"generated_prompt": generated_prompt})
-        return generated_prompt
+
+        v_num = len(existing_versions) + 1
+        short_req = refinement_request[:25] + ("..." if len(refinement_request) > 25 else "")
+        label = f"v{v_num} (Refined: {short_req})"
+
+        existing_versions.append({
+            "version": v_num,
+            "label": label,
+            "prompt": generated_prompt,
+        })
+
+        await _COMPILED_GRAPH.aupdate_state(
+            config,
+            {
+                "generated_prompt": generated_prompt,
+                "prompt_versions": existing_versions,
+            }
+        )
+        return {"generated_prompt": generated_prompt, "prompt_versions": existing_versions}
 
     async def generate_image(self, conversation_id: str) -> Dict[str, str]:
         """Returns {"path": <file path>, "method": "edit"|"generate", "size": "<WxH>"}

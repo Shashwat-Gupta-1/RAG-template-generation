@@ -50,23 +50,23 @@ function SingleGenerateContent() {
 
   const storedValues = state.storedValues ?? {};
   const setStoredValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => {
-    updateState({ storedValues: typeof val === 'function' ? val(storedValues) : val });
+    updateState({ storedValues: val });
   };
 
-  const layers = state.layers ?? [];
-  const setLayers = (val: OverlayLayer[]) => updateState({ layers: val });
+  const layers: OverlayLayer[] = state.layers ?? [];
+  const setLayers = (val: OverlayLayer[] | ((prev: OverlayLayer[]) => OverlayLayer[])) => updateState({ layers: val });
 
   const layoutOverrides = state.layoutOverrides ?? {};
-  const setLayoutOverrides = (val: Record<string, Record<string, any>>) => updateState({ layoutOverrides: val });
+  const setLayoutOverrides = (val: Record<string, Record<string, any>> | ((prev: Record<string, Record<string, any>>) => Record<string, Record<string, any>>)) => updateState({ layoutOverrides: val });
 
   const styleOverrides = state.styleOverrides ?? {};
-  const setStyleOverrides = (val: Record<string, Record<string, any>>) => updateState({ styleOverrides: val });
+  const setStyleOverrides = (val: Record<string, Record<string, any>> | ((prev: Record<string, Record<string, any>>) => Record<string, Record<string, any>>)) => updateState({ styleOverrides: val });
 
   const customCaptionPrompt = state.customCaptionPrompt ?? "";
   const setCustomCaptionPrompt = (val: string) => updateState({ customCaptionPrompt: val });
 
   const fieldPrompts = state.fieldPrompts ?? {};
-  const setFieldPrompts = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldPrompts: typeof val === 'function' ? val(fieldPrompts) : val });
+  const setFieldPrompts = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldPrompts: val });
 
   const zoneEditorMode = state.zoneEditorMode ?? false;
   const setZoneEditorMode = (val: boolean) => updateState({ zoneEditorMode: val });
@@ -74,14 +74,14 @@ function SingleGenerateContent() {
   const hintField = state.hintField ?? null;
   const setHintField = (val: string | null) => updateState({ hintField: val });
 
-  const assignedZoneFields = state.assignedZoneFields ?? new Set<string>();
-  const setAssignedZoneFields = (val: Set<string>) => updateState({ assignedZoneFields: val });
+  const assignedZoneFields: Set<string> = state.assignedZoneFields ?? new Set<string>();
+  const setAssignedZoneFields = (val: Set<string> | ((prev: Set<string>) => Set<string>)) => updateState({ assignedZoneFields: val });
 
   const zoneEditorKey = state.zoneEditorKey ?? 0;
-  const setZoneEditorKey = (val: number | ((prev: number) => number)) => updateState({ zoneEditorKey: typeof val === 'function' ? val(zoneEditorKey) : val });
+  const setZoneEditorKey = (val: number | ((prev: number) => number)) => updateState({ zoneEditorKey: val });
 
-  const presetZones = state.presetZones ?? [];
-  const setPresetZones = (val: DrawnZone[]) => updateState({ presetZones: val });
+  const presetZones: DrawnZone[] = state.presetZones ?? [];
+  const setPresetZones = (val: DrawnZone[] | ((prev: DrawnZone[]) => DrawnZone[])) => updateState({ presetZones: val });
 
   // Local ephemeral states
   const [loading, setLoading] = useState(false);
@@ -215,7 +215,13 @@ function SingleGenerateContent() {
       const mergedInputs = isFreshSearch ? (additionalInputs || {}) : { ...storedValues, ...(additionalInputs || {}) };
       Object.entries(mergedInputs).forEach(([k, v]) => {
         if (v !== undefined && v !== null && v !== "") {
-          formData.append(k, v);
+          if (v instanceof Blob) {
+            formData.append(k, v);
+          } else if (typeof v === "object") {
+            formData.append(k, JSON.stringify(v));
+          } else {
+            formData.append(k, String(v));
+          }
         }
       });
 
@@ -232,11 +238,59 @@ function SingleGenerateContent() {
 
         if (json.status === "success") {
           setPosterUrl(`data:image/png;base64,${json.image}`);
-          if (json.overlay_layers) setLayers(json.overlay_layers);
           if (json.folder) setFolder(json.folder);
           if (json.template_id) setTemplateId(json.template_id);
           if (json.overlay_values) {
             setStoredValues((prev) => ({ ...prev, ...json.overlay_values }));
+          }
+
+          if (json.overlay_layers) {
+            const syncedZones: DrawnZone[] = json.overlay_layers
+              .filter((l: any) => l.box && l.box.width > 0)
+              .map((l: any) => {
+                const currentLayout = effectiveLayoutOverrides[l.id] || {};
+                const currentStyle = effectiveStyleOverrides[l.id] || {};
+                return {
+                  field_id: l.id,
+                  x: currentLayout.x ?? l.box.x,
+                  y: currentLayout.y ?? l.box.y,
+                  width: currentLayout.width ?? l.box.width,
+                  height: currentLayout.height ?? l.box.height,
+                  font_family: currentStyle.font_family || l.style?.font_family || "Poppins",
+                  font_size: currentStyle.font_size || l.style?.font_size || 32,
+                  font_weight: currentStyle.font_weight || l.style?.font_weight || "bold",
+                  color: currentStyle.color || l.style?.color || "#FFFFFF",
+                  align: (currentStyle.align || l.style?.align || "center") as any,
+                  llm_can_invent: !!l.llm_can_invent,
+                  type: l.type || "text",
+                };
+              });
+
+            const syncedLayoutOverrides: Record<string, any> = { ...effectiveLayoutOverrides };
+            const syncedStyleOverrides: Record<string, any> = { ...effectiveStyleOverrides };
+
+            syncedZones.forEach((z) => {
+              if (!syncedLayoutOverrides[z.field_id]) {
+                syncedLayoutOverrides[z.field_id] = { x: z.x, y: z.y, width: z.width, height: z.height };
+              }
+              if (!syncedStyleOverrides[z.field_id]) {
+                syncedStyleOverrides[z.field_id] = {
+                  font_family: z.font_family,
+                  font_size: z.font_size,
+                  font_weight: z.font_weight,
+                  color: z.color,
+                  align: z.align,
+                };
+              }
+            });
+
+            updateState({
+              layers: json.overlay_layers,
+              presetZones: syncedZones,
+              layoutOverrides: syncedLayoutOverrides,
+              styleOverrides: syncedStyleOverrides,
+              assignedZoneFields: new Set(syncedZones.map((z) => z.field_id)),
+            });
           }
         } else if (json.status === "ambiguous") {
           setAmbiguousMatches(json.matches || []);
@@ -303,6 +357,35 @@ function SingleGenerateContent() {
     id: layer.id,
     llm_can_invent: !!(layer as any).llm_can_invent,
   }));
+
+  // Called continuously whenever zones are added, dragged, resized, or styled in ZoneEditor
+  const handleZoneChange = useCallback(
+    (zones: DrawnZone[]) => {
+      const newLayoutOverrides: Record<string, any> = {};
+      const newStyleOverrides: Record<string, any> = {};
+
+      zones.forEach((z) => {
+        newLayoutOverrides[z.field_id] = {
+          x: z.x, y: z.y, width: z.width, height: z.height,
+        };
+        newStyleOverrides[z.field_id] = {
+          font_family: z.font_family,
+          font_size: z.font_size,
+          font_weight: z.font_weight,
+          color: z.color,
+          align: z.align,
+        };
+      });
+
+      updateState({
+        layoutOverrides: newLayoutOverrides,
+        styleOverrides: newStyleOverrides,
+        presetZones: zones,
+        assignedZoneFields: new Set(zones.map((z) => z.field_id)),
+      });
+    },
+    [updateState]
+  );
 
   // Called when user completes zone drawing and clicks Done
   const handleZoneDone = useCallback(
@@ -533,9 +616,10 @@ function SingleGenerateContent() {
               <ZoneEditor
                 key={zoneEditorKey}
                 initialZones={presetZones}
-                posterImageUrl={thumbnailUrl}
+                posterImageUrl={thumbnailUrl || posterUrl || ""}
                 requiredFields={requiredFieldsMeta}
                 textValues={storedValues}
+                onChange={handleZoneChange}
                 onDone={handleZoneDone}
                 onCancel={() => { setZoneEditorMode(false); setMissingFields(null); }}
                 hintField={hintField}
@@ -573,8 +657,33 @@ function SingleGenerateContent() {
                     </a>
                     <button
                       onClick={() => {
+                        let activeZones = presetZones;
+                        if ((!activeZones || activeZones.length === 0) && layers.length > 0) {
+                          activeZones = layers
+                            .filter((l: any) => l.box && l.box.width > 0)
+                            .map((l: any) => {
+                              const currentLayout = layoutOverrides[l.id] || {};
+                              const currentStyle = styleOverrides[l.id] || {};
+                              return {
+                                field_id: l.id,
+                                x: currentLayout.x ?? l.box.x,
+                                y: currentLayout.y ?? l.box.y,
+                                width: currentLayout.width ?? l.box.width,
+                                height: currentLayout.height ?? l.box.height,
+                                font_family: currentStyle.font_family || l.style?.font_family || "Poppins",
+                                font_size: currentStyle.font_size || l.style?.font_size || 32,
+                                font_weight: currentStyle.font_weight || l.style?.font_weight || "bold",
+                                color: currentStyle.color || l.style?.color || "#FFFFFF",
+                                align: (currentStyle.align || l.style?.align || "center") as any,
+                                llm_can_invent: !!l.llm_can_invent,
+                                type: l.type || "text",
+                              };
+                            });
+                          setPresetZones(activeZones);
+                        }
+                        setAssignedZoneFields(new Set((activeZones || []).map((z) => z.field_id)));
+                        setZoneEditorKey((prev) => prev + 1);
                         setZoneEditorMode(true);
-                        setAssignedZoneFields(new Set());
                       }}
                       className="py-2.5 px-5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 font-medium rounded-xl border border-indigo-700/50 text-xs flex items-center gap-2 transition-all"
                     >

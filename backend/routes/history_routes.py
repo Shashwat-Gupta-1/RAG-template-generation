@@ -50,6 +50,8 @@ class ConversationSchema(BaseModel):
     job_download_url: Optional[str] = None
     assumptions: Optional[dict] = None
     generated_prompt: Optional[str] = None
+    prompt_versions: Optional[list] = None
+    has_image: bool = False
     created_at: str
     updated_at: str
 
@@ -201,6 +203,8 @@ def _serialize_convo(c) -> dict:
         "job_error": c.job_error,
         "assumptions": c.assumptions,
         "generated_prompt": c.generated_prompt,
+        "prompt_versions": c.prompt_versions,
+        "has_image": getattr(c, "has_image", False),
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
     }

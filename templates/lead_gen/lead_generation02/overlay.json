@@ -1,0 +1,119 @@
+{
+  "template_id": "lead_generation02",
+  "description": "Customised lead generation poster for a small business owner to attract MS customers during festive season",
+  "type": "poster",
+  "tags": [
+    "lead_gen",
+    "MS customer poster",
+    "shopkeeper poster",
+    "Diwali offers",
+    "Dussehra sales",
+    "Navratri promotion",
+    "festival season sales",
+    "business owner marketing",
+    "customer attraction poster",
+    "lead generation poster",
+    "India sales promotion",
+    "Indian business poster",
+    "small business marketing",
+    "Diwali marketing ideas"
+  ],
+  "base_image": "templates/lead_gen/lead_generation02/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1536
+  },
+  "overlay_layers": [
+    {
+      "id": "name",
+      "type": "text",
+      "placeholder": "{{name}}",
+      "instruction": "name of shopkeeper",
+      "llm_can_invent": false,
+      "box": {
+        "x": 569,
+        "y": 1099,
+        "width": 378,
+        "height": 57
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "user_photo",
+      "type": "image",
+      "placeholder": "{{user_photo}}",
+      "instruction": "Upload profile photo to place here",
+      "llm_can_invent": false,
+      "box": {
+        "x": 105,
+        "y": 994,
+        "width": 301,
+        "height": 301
+      },
+      "style": {
+        "shape": "circle",
+        "border_color": "#FFFFFF",
+        "border_width": 4
+      },
+      "editable": true
+    },
+    {
+      "id": "heading",
+      "type": "text",
+      "placeholder": "{{heading}}",
+      "instruction": "heading for poster",
+      "llm_can_invent": true,
+      "box": {
+        "x": 571,
+        "y": 1205,
+        "width": 389,
+        "height": 42
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#262626",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "caption",
+      "type": "text",
+      "placeholder": "{{caption}}",
+      "instruction": "caption for poster",
+      "llm_can_invent": true,
+      "box": {
+        "x": 586,
+        "y": 1272,
+        "width": 369,
+        "height": 45
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#080808",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

@@ -5,7 +5,7 @@
   },
 
   "company": {
-    "name": "MS Fincap Pvt. Ltd.",
+    "name": "MSFINCAP",
     "industry": "NBFC",
     "tagline": "Your Financial Navigator",
     "website": "https://www.msfincap.com",
@@ -34,16 +34,16 @@
   "logo": {
     "enabled": true,
     "path": "brand_config/logo.png",
-    "default_position": "center",
-    "allowed_positions": ["center", "top-center", "top-left", "top-right", "bottom-center", "bottom-left", "bottom-right"],
+    "default_position": "top-center",
+    "allowed_positions": ["top-center", "center", "top-left", "top-right", "bottom-center", "bottom-left", "bottom-right"],
     "locked": false,
-    "size_guidance": "Small to medium — clearly legible and identifiable, but never the single dominant visual element of the poster unless the user explicitly requests a logo-forward design.",
-    "padding_guidance": "Comfortable clear space on all sides, roughly proportional to canvas size rather than a fixed pixel value.",
+    "size_guidance": "Small to medium — clearly legible and identifiable, placed at the absolute top center with zero margins (flush against the topmost horizontal border line Y=0 of the canvas) by default unless the user explicitly requests a different position or logo-forward design.",
+    "padding_guidance": "Zero margins, zero padding, zero gap — placed flush against the topmost pixel border line (Y=0) of the canvas with no top space or margin above the logo by default.",
     "allow_rotation": false,
     "allow_recolor": false,
     "allow_crop": false,
     "keep_clear_space": true,
-    "override_note": "default_position is 'center' purely as a fallback when the user hasn't specified anything. If the user says top-left, top-right, or anything else, use that instead — this field is never a constraint on user intent."
+    "override_note": "default_position is 'top-center' (placed at the top center without any margins) purely as a fallback when the user hasn't specified anything. If the user says top-left, top-right, center, or anything else, use that instead — this field is never a constraint on user intent."
   },
 
   "mascot": {
@@ -85,6 +85,7 @@
 
   "text_rendering": {
     "mode": "dynamic",
+    "brand_name_rule": "When a poster is displayed, the name of the brand should always be written as MSFINCAP by default.",
     "policy": "If the user has given exact copy for any element — a headline, a price, a date, a name, a phone number, a CTA line, anything — the generated prompt MUST instruct the model to render that exact text, verbatim, directly on the poster. gpt-image-2 renders legible text reliably at typical poster sizes; do not fall back to describing a blank placeholder for text the user has already given you.",
     "when_no_copy_given": "Only describe a region as a blank placeholder shape when the user genuinely has NOT given wording for it yet (e.g. they want an editable template, or a name field that changes per recipient). Do not invent filler text for a slot the user left open unless that slot is explicitly marked as an AI-generate field (see creation_agent.copy_fields below) — in that case, write short, on-brand original copy yourself.",
     "typography_guidance": "Headlines: bold, high-contrast sans-serif in a brand or occasion-appropriate color. Supporting text: clean sans-serif with strong contrast against its background. Festive/greeting headlines may use a script or display font when the occasion calls for a warmer tone. Always describe adequate spacing/contrast so text stays legible.",
@@ -160,7 +161,7 @@
     "model": "gpt-image-2",
     "default_quality": "high",
     "always_include": ["Professional", "High Quality", "Balanced Composition", "Modern Design", "High Resolution"],
-    "negative_prompt": ["watermark", "signature", "QR code", "low quality", "blurry", "cropped", "distorted", "extra limbs", "pixelated", "garbled or misspelled text"],
+    "negative_prompt": ["top margin above logo", "padding above logo", "space above logo", "gap above logo", "watermark", "signature", "QR code", "low quality", "blurry", "cropped", "distorted", "extra limbs", "pixelated", "garbled or misspelled text"],
     "note_on_text": "text/letters/numbers/typography are intentionally NOT in this negative_prompt list — gpt-image-2 is expected to render user-specified exact copy directly (see text_rendering). Only garbled/incorrect text is forbidden, not text itself."
   },
 

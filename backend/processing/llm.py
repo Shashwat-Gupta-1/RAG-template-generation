@@ -1,24 +1,4 @@
-"""
-LLM Integration — OpenRouter
------------------------------
-Two public functions:
 
-  fill_values(overlay, values, prompt)
-      Replaces __LLM_INVENT__ and __LLM_EXTRACT__ sentinels
-      with real content from the LLM.
-      Called once per poster (single) or once per row (bulk, only for invent fields).
-
-  extract_from_prompt(overlay, prompt)
-      Used in single poster flow.
-      Asks LLM to pull field values out of the user's natural language prompt.
-
-Design rules:
-  - One API call per poster, not one per field
-  - Never call LLM for fields already filled by Excel
-  - Always whitelist returned keys against overlay field IDs
-  - Strip markdown fences before parsing JSON
-  - Retry once on parse failure, then fail cleanly
-"""
 
 from __future__ import annotations
 
@@ -274,12 +254,13 @@ User hint: "{user_hint}"
 Write:
 1. A rich description of 15-20 words covering occasion, audience, and purpose
 2. A list of 8-12 search tags — single words or short phrases
-
+3.Only include tags directly relevant to the template's visual design or specific use case
 Rules:
 - Tags must be specific. Include synonyms, Hindi equivalents, alternate spellings.
 - Include the category name and related festival or event names.
 - Never use generic words like "template" or "poster" as tags.
-- Return ONLY valid JSON: {{"description": "...", "tags": [...]}}"""
+- Return ONLY valid JSON: {{"description": "...", "tags": [...]}}
+ -Don't include generic marketing terms or every possible festival"""
 
     from backend.validation.logging_config import get_logger
     logger = get_logger("LLM.MetadataGenerator")

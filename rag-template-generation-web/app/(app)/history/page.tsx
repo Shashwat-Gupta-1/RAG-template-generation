@@ -27,8 +27,6 @@ import {
   Loader2
 } from "lucide-react";
 
-type FilterType = "all" | "drafts" | "completed";
-
 // Modal Component for Viewing All Versions
 function VersionsModal({ convoId, onClose }: { convoId: string, onClose: () => void }) {
   const [images, setImages] = useState<string[]>([]);
@@ -37,7 +35,7 @@ function VersionsModal({ convoId, onClose }: { convoId: string, onClose: () => v
 
   useEffect(() => {
     if (!convoId) return;
-    
+
     // Fallback logic for sample items
     if (convoId.startsWith("sample-")) {
       const type = convoId.replace("sample-", "");
@@ -82,7 +80,7 @@ function VersionsModal({ convoId, onClose }: { convoId: string, onClose: () => v
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <div className="flex-1 min-h-[500px] flex items-center justify-center bg-slate-100/50 dark:bg-slate-900/50 relative p-6">
           {loading ? (
             <div className="flex flex-col items-center text-slate-500">
@@ -94,16 +92,16 @@ function VersionsModal({ convoId, onClose }: { convoId: string, onClose: () => v
           ) : (
             <div className="relative flex items-center justify-center w-full h-full">
               {images.length > 1 && (
-                <button 
+                <button
                   onClick={() => setCurrentIndex(prev => prev > 0 ? prev - 1 : images.length - 1)}
                   className="absolute left-2 z-10 p-2 bg-white/90 dark:bg-slate-800/90 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:scale-105 transition-all"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </button>
               )}
-              
-              <img 
-                src={images[currentIndex]} 
+
+              <img
+                src={images[currentIndex]}
                 alt={`Version ${currentIndex + 1}`}
                 className="max-h-[600px] max-w-full object-contain rounded-lg shadow-md"
                 onError={(e) => {
@@ -115,9 +113,9 @@ function VersionsModal({ convoId, onClose }: { convoId: string, onClose: () => v
                   target.parentNode?.appendChild(placeholder);
                 }}
               />
-              
+
               {images.length > 1 && (
-                <button 
+                <button
                   onClick={() => setCurrentIndex(prev => prev < images.length - 1 ? prev + 1 : 0)}
                   className="absolute right-2 z-10 p-2 bg-white/90 dark:bg-slate-800/90 rounded-full shadow-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:scale-105 transition-all"
                 >
@@ -171,11 +169,11 @@ const SAMPLE_CREATIONS: Conversation[] = [
 function CardThumbnail({ convo }: { convo: Conversation }) {
   const [imgError, setImgError] = useState(false);
 
-  const type = convo.conversation_type || "single";
-  const isDraft = 
-    convo.job_status === "draft" || 
+  const type: string = convo.conversation_type || "single";
+  const isDraft =
+    convo.job_status === "draft" ||
     convo.title?.toLowerCase().includes("draft") ||
-    (type === "agent" && !convo.template_id);
+    ((type === "agent" || type === "creation_agent") && !convo.template_id);
   const isMotion = type === "motion" || convo.title?.toLowerCase().includes("motion");
   const isBulk = type === "bulk";
 
@@ -251,7 +249,6 @@ export default function HistoryPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState<FilterType>("all");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -263,7 +260,7 @@ export default function HistoryPage() {
       if (stored) {
         setPinnedIds(JSON.parse(stored));
       }
-    } catch (err) {}
+    } catch (err) { }
   }, []);
 
   const fetchHistory = async () => {
@@ -300,7 +297,7 @@ export default function HistoryPage() {
       const next = prev.filter((i) => i !== id);
       try {
         localStorage.setItem("pinned_conversations", JSON.stringify(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -311,7 +308,7 @@ export default function HistoryPage() {
       const next = prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id];
       try {
         localStorage.setItem("pinned_conversations", JSON.stringify(next));
-      } catch {}
+      } catch { }
       return next;
     });
   };
@@ -329,11 +326,11 @@ export default function HistoryPage() {
       setEditingId(null);
       return;
     }
-    
+
     // Optimistic update
     setConversations(prev => prev.map(c => c.id === id ? { ...c, title: editTitle } : c));
     setEditingId(null);
-    
+
     const updated = await renameConversation(id, editTitle);
     if (!updated) {
       // Revert if failed
@@ -342,22 +339,19 @@ export default function HistoryPage() {
   };
 
   const filteredConvos = conversations.filter((c) => {
+    // Only show sessions where a poster has actually been generated
+    const hasPoster = c.id.startsWith("sample-")
+      ? c.id !== "sample-3"
+      : (c.has_image ?? (Boolean(c.template_folder && c.template_id) || Boolean(c.job_completed && c.job_completed > 0)));
+
+    if (!hasPoster) return false;
+
     const q = searchQuery.toLowerCase().trim();
-    const matchesSearch =
+    return (
       !q ||
       (c.title && c.title.toLowerCase().includes(q)) ||
-      (c.conversation_type && c.conversation_type.toLowerCase().includes(q));
-
-    const isDraft = 
-      c.job_status === "draft" || 
-      c.title?.toLowerCase().includes("draft") ||
-      (c.conversation_type === "agent" && !c.template_id);
-      
-    let matchesFilter = true;
-    if (filter === "drafts") matchesFilter = isDraft;
-    if (filter === "completed") matchesFilter = !isDraft;
-
-    return matchesSearch && matchesFilter;
+      (c.conversation_type && c.conversation_type.toLowerCase().includes(q))
+    );
   });
 
   const sortedConvos = [...filteredConvos].sort((a, b) => {
@@ -382,23 +376,6 @@ export default function HistoryPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Filter Pills */}
-          <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold">
-            {(["all", "drafts", "completed"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3.5 py-1.5 rounded-lg capitalize transition-all ${
-                  filter === f
-                    ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/20"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-
           {/* Search Bar */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -432,8 +409,8 @@ export default function HistoryPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {sortedConvos.map((convo) => {
             const isPinned = pinnedIds.includes(convo.id);
-            const isDraft = 
-              convo.job_status === "draft" || 
+            const isDraft =
+              convo.job_status === "draft" ||
               convo.title?.toLowerCase().includes("draft") ||
               (convo.conversation_type === "agent" && !convo.template_id);
             const isMotion = convo.conversation_type === "motion" || convo.title?.toLowerCase().includes("motion");
@@ -460,10 +437,10 @@ export default function HistoryPage() {
 
             const formattedDate = convo.created_at
               ? new Date(convo.created_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
               : "Recent";
 
             return (
@@ -484,9 +461,8 @@ export default function HistoryPage() {
                       type="button"
                       onClick={(e) => togglePin(e, convo.id)}
                       title={isPinned ? "Unpin" : "Pin"}
-                      className={`p-1 rounded-lg hover:bg-slate-800 transition-colors ${
-                        isPinned ? "text-amber-400" : "text-slate-300 hover:text-amber-400"
-                      }`}
+                      className={`p-1 rounded-lg hover:bg-slate-800 transition-colors ${isPinned ? "text-amber-400" : "text-slate-300 hover:text-amber-400"
+                        }`}
                     >
                       <Pin className={`h-3.5 w-3.5 ${isPinned ? "fill-amber-400" : ""}`} />
                     </button>
@@ -576,12 +552,12 @@ export default function HistoryPage() {
           })}
         </div>
       )}
-      
+
       {/* Versions Gallery Modal */}
       {versionsModalId && (
-        <VersionsModal 
-          convoId={versionsModalId} 
-          onClose={() => setVersionsModalId(null)} 
+        <VersionsModal
+          convoId={versionsModalId}
+          onClose={() => setVersionsModalId(null)}
         />
       )}
     </div>

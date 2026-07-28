@@ -1,0 +1,97 @@
+{
+  "template_id": "lead gen001",
+  "description": "Announce lead generation offers at tradeshows, conferences, or business events for B2B leads.",
+  "type": "poster",
+  "tags": [
+    "lead gen",
+    "B2B",
+    "tradeshows",
+    "conferences",
+    "business events",
+    "sales lead",
+    "lead generation poster",
+    "trade show booth",
+    "business exhibition",
+    "Diwali promotion",
+    "Indian business"
+  ],
+  "base_image": "templates/lead_gen/lead gen001/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1536
+  },
+  "overlay_layers": [
+    {
+      "id": "headline",
+      "type": "text",
+      "placeholder": "{{headline}}",
+      "instruction": "Main title text",
+      "llm_can_invent": false,
+      "box": {
+        "x": 60,
+        "y": 60,
+        "width": 602,
+        "height": 90
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_2",
+      "type": "text",
+      "placeholder": "{{field_2}}",
+      "instruction": "Enter value for field_2",
+      "llm_can_invent": false,
+      "box": {
+        "x": 242,
+        "y": 678,
+        "width": 477,
+        "height": 589
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "field_3",
+      "type": "text",
+      "placeholder": "{{field_3}}",
+      "instruction": "Enter value for field_3",
+      "llm_can_invent": true,
+      "box": {
+        "x": 476,
+        "y": 182,
+        "width": 346,
+        "height": 402
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

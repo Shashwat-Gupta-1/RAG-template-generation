@@ -12,13 +12,13 @@ class Settings(BaseSettings):
     groq_model_fast: str = Field(default="llama-3.1-8b-instant", validation_alias="GROQ_MODEL_FAST")
 
     openrouter_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
-    openrouter_model: str = Field(default="openrouter/free", validation_alias="OPENROUTER_MODEL")
+    openrouter_model: str = Field(default="openai/gpt-oss-120b", validation_alias="OPENROUTER_MODEL")
 
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
     openai_image_model: str = Field(default="gpt-image-2-2026-04-21", validation_alias="OPENAI_IMAGE_MODEL")
 
-    free_model: str = Field(default="llama-3.3-70b-versatile", validation_alias="FREE_MODEL")
-    rag_score_threshold: float = 0.55
+    free_model: str = Field(default="gpt-oss-120b", validation_alias="FREE_MODEL")
+    rag_score_threshold: float = 0.60
     ambiguity_gap: float = 0.15
     max_prompt_length: int = 500
     font_path: str = "fonts/NotoSans.ttf"

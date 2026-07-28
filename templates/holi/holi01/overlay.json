@@ -1,0 +1,68 @@
+{
+  "template_id": "holi01",
+  "description": "Colorful visual aid celebrating Holi festival with vibrant colors and energetic crowd appeal.",
+  "type": "poster",
+  "tags": [
+    "Holi",
+    "Holika",
+    "Hindu festival",
+    "Colorful",
+    "Dyed hair",
+    "Rainbow colors",
+    "Indian festival",
+    "Spiritual celebration",
+    "Vibrant patterns",
+    "Water splash",
+    "Powdered colors"
+  ],
+  "base_image": "templates/holi/holi01/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1536
+  },
+  "overlay_layers": [
+    {
+      "id": "headline",
+      "type": "text",
+      "placeholder": "{{headline}}",
+      "instruction": "Main title greeting line for poster",
+      "llm_can_invent": false,
+      "box": {
+        "x": 60,
+        "y": 60,
+        "width": 602,
+        "height": 90
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "user_photo",
+      "type": "image",
+      "placeholder": "{{user_photo}}",
+      "instruction": "Upload profile photo to place here",
+      "llm_can_invent": false,
+      "box": {
+        "x": 572,
+        "y": 176,
+        "width": 301,
+        "height": 301
+      },
+      "style": {
+        "shape": "circle",
+        "border_color": "#FFFFFF",
+        "border_width": 4
+      },
+      "editable": true
+    }
+  ]
+}

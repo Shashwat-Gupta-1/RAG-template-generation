@@ -1,0 +1,117 @@
+{
+  "template_id": "lead_generation01",
+  "description": "Lead generation poster for marketing professionals during Diwali festival season",
+  "type": "poster",
+  "tags": [
+    "Lead Generation",
+    "Diwali",
+    "Dhanteras",
+    "Kali Chaudas",
+    "Bhai Dooj",
+    "B2B",
+    "Makar Sankranti",
+    "Panchak",
+    "Marketing",
+    "Sales",
+    "Ganesh Chaturthi",
+    "Golu"
+  ],
+  "base_image": "templates/lead_gen/lead_generation01/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1536
+  },
+  "overlay_layers": [
+    {
+      "id": "mame",
+      "type": "text",
+      "placeholder": "{{mame}}",
+      "instruction": "name",
+      "llm_can_invent": true,
+      "box": {
+        "x": 83,
+        "y": 1248,
+        "width": 236,
+        "height": 50
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#171717",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "user_photo",
+      "type": "image",
+      "placeholder": "{{user_photo}}",
+      "instruction": "Upload profile photo to place here",
+      "llm_can_invent": false,
+      "box": {
+        "x": 81,
+        "y": 792,
+        "width": 206,
+        "height": 265
+      },
+      "style": {
+        "shape": "circle",
+        "border_color": "#FFFFFF",
+        "border_width": 4
+      },
+      "editable": true
+    },
+    {
+      "id": "heading",
+      "type": "text",
+      "placeholder": "{{heading}}",
+      "instruction": "heading",
+      "llm_can_invent": false,
+      "box": {
+        "x": 434,
+        "y": 1254,
+        "width": 202,
+        "height": 42
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#100f0f",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    },
+    {
+      "id": "caption",
+      "type": "text",
+      "placeholder": "{{caption}}",
+      "instruction": "caption",
+      "llm_can_invent": true,
+      "box": {
+        "x": 681,
+        "y": 1247,
+        "width": 277,
+        "height": 54
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#000000",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}

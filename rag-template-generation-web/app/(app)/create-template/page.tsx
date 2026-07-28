@@ -43,6 +43,9 @@ import {
   FileCode,
   Hammer,
   Sliders,
+  Bot,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
 // Dynamically import Konva component with SSR disabled
@@ -73,11 +76,11 @@ function CreateTemplateContent() {
   const [conversationId, setConversationId] = useState<string | null>(convoIdParam);
   
   const step = state.step ?? 1;
-  const setStep = (val: number | ((prev: number) => number)) => updateState({ step: typeof val === 'function' ? val(step) : val });
+  const setStep = (val: number | ((prev: number) => number)) => updateState({ step: val });
 
   // Step 1: Chat & Assumption state
-  const messages = state.messages ?? [];
-  const setMessages = (val: any) => updateState({ messages: typeof val === 'function' ? val(messages) : val });
+  const messages: any[] = state.messages ?? [];
+  const setMessages = (val: any[] | ((prev: any[]) => any[])) => updateState({ messages: val });
 
   const chatInput = state.chatInput ?? "";
   const setChatInput = (val: string) => updateState({ chatInput: val });
@@ -94,13 +97,30 @@ function CreateTemplateContent() {
     logo_position: "",
     mascot_position: "",
   };
-  const setAssumptions = (val: any) => updateState({ assumptions: typeof val === 'function' ? val(assumptions) : val });
+  const setAssumptions = (val: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => updateState({ assumptions: val });
 
   const userEdits = state.userEdits ?? "";
   const setUserEdits = (val: string) => updateState({ userEdits: val });
 
   const generatedPrompt = state.generatedPrompt ?? "";
   const setGeneratedPrompt = (val: string) => updateState({ generatedPrompt: val });
+
+  const promptVersions: Array<{ version: number; label: string; prompt: string }> = state.promptVersions ?? [];
+  const setPromptVersions = (val: Array<{ version: number; label: string; prompt: string }>) => updateState({ promptVersions: val });
+
+  const selectedPromptVersion: number = state.selectedPromptVersion ?? (promptVersions.length > 0 ? promptVersions[promptVersions.length - 1].version : 1);
+  const setSelectedPromptVersion = (val: number) => updateState({ selectedPromptVersion: val });
+
+  const applyPromptResponse = (res: { generated_prompt?: string; prompt_versions?: Array<{ version: number; label: string; prompt: string }> }) => {
+    if (res.prompt_versions && Array.isArray(res.prompt_versions) && res.prompt_versions.length > 0) {
+      setPromptVersions(res.prompt_versions);
+      const latest = res.prompt_versions[res.prompt_versions.length - 1];
+      setSelectedPromptVersion(latest.version);
+      setGeneratedPrompt(latest.prompt);
+    } else if (res.generated_prompt) {
+      setGeneratedPrompt(res.generated_prompt);
+    }
+  };
 
   const refinementInput = state.refinementInput ?? "";
   const setRefinementInput = (val: string) => updateState({ refinementInput: val });
@@ -122,7 +142,7 @@ function CreateTemplateContent() {
   const setImgDimensions = (val: { w: number; h: number }) => updateState({ imgDimensions: val });
 
   // Step 3: Zone Drawing state
-  const zones = state.zones ?? [
+  const zones: any[] = state.zones ?? [
     {
       id: "headline",
       type: "text",
@@ -155,19 +175,19 @@ function CreateTemplateContent() {
       llm_can_invent: false,
     },
   ];
-  const setZones = (val: any) => updateState({ zones: typeof val === 'function' ? val(zones) : val });
+  const setZones = (val: any[] | ((prev: any[]) => any[])) => updateState({ zones: val });
 
   const selectedZoneId = state.selectedZoneId ?? null;
   const setSelectedZoneId = (val: string | null) => updateState({ selectedZoneId: val });
 
   const expandedZoneIds = state.expandedZoneIds ?? { headline: true };
-  const setExpandedZoneIds = (val: any) => updateState({ expandedZoneIds: typeof val === 'function' ? val(expandedZoneIds) : val });
+  const setExpandedZoneIds = (val: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => updateState({ expandedZoneIds: val });
 
   // Step 4: Overlay & Sample Preview state
-  const overlayLayers = state.overlayLayers ?? [];
-  const setOverlayLayers = (val: OverlayLayer[]) => updateState({ overlayLayers: val });
+  const overlayLayers: OverlayLayer[] = state.overlayLayers ?? [];
+  const setOverlayLayers = (val: OverlayLayer[] | ((prev: OverlayLayer[]) => OverlayLayer[])) => updateState({ overlayLayers: val });
 
-  const validationErrors = state.validationErrors ?? [];
+  const validationErrors: string[] = state.validationErrors ?? [];
   const setValidationErrors = (val: string[]) => updateState({ validationErrors: val });
 
   const samplePreviewB64 = state.samplePreviewB64 ?? null;
@@ -181,7 +201,7 @@ function CreateTemplateContent() {
   // Step 5: Save State
   const [existingCategories, setExistingCategories] = useState<string[]>([]);
   const selectedCategoryOption = state.selectedCategoryOption ?? "";
-  const setSelectedCategoryOption = (val: any) => updateState({ selectedCategoryOption: typeof val === 'function' ? val(selectedCategoryOption) : val });
+  const setSelectedCategoryOption = (val: string | ((prev: string) => string)) => updateState({ selectedCategoryOption: val });
 
   const customCategory = state.customCategory ?? "";
   const setCustomCategory = (val: string) => updateState({ customCategory: val });
@@ -204,7 +224,7 @@ function CreateTemplateContent() {
   // Scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, loading, error]);
 
   // Load existing categories from backend
   const loadCategories = async () => {
@@ -249,8 +269,8 @@ function CreateTemplateContent() {
             if (stateData.assumptions) {
               setAssumptions((prev) => ({ ...prev, ...stateData.assumptions }));
             }
-            if (stateData.generated_prompt) {
-              setGeneratedPrompt(stateData.generated_prompt);
+            if (stateData.generated_prompt || stateData.prompt_versions) {
+              applyPromptResponse(stateData);
               setIsReady(true);
             }
           }
@@ -270,7 +290,7 @@ function CreateTemplateContent() {
             setAssumptions((prev) => ({ ...prev, ...chatRes.assumptions }));
           }
           if (chatRes.ready) setIsReady(true);
-          if (chatRes.generated_prompt) setGeneratedPrompt(chatRes.generated_prompt);
+          applyPromptResponse(chatRes);
         }
       } catch (err: any) {
         console.warn("Failed to initialize agent session:", err.message);
@@ -291,7 +311,7 @@ function CreateTemplateContent() {
     if (!chatInput.trim() || !conversationId) return;
     const userMsg = chatInput.trim();
     setChatInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
+    setMessages((prev) => [...(prev || []), { role: "user", content: userMsg }]);
     setLoading(true);
     setError(null);
 
@@ -299,15 +319,15 @@ function CreateTemplateContent() {
       const res = await agentChat(conversationId, userMsg);
       if (res.reply) {
         setMessages((prev) => [
-          ...prev,
+          ...(prev || []),
           { role: "assistant", content: res.reply },
         ]);
       }
       if (res.assumptions) {
-        setAssumptions((prev) => ({ ...prev, ...res.assumptions }));
+        setAssumptions((prev) => ({ ...(prev || {}), ...res.assumptions }));
       }
       if (res.ready) setIsReady(true);
-      if (res.generated_prompt) setGeneratedPrompt(res.generated_prompt);
+      applyPromptResponse(res);
     } catch (err: any) {
       setError(err.message || "Failed to communicate with template agent.");
     } finally {
@@ -322,8 +342,8 @@ function CreateTemplateContent() {
 
     try {
       const res = await rebuildPrompt(conversationId, assumptions, userEdits);
+      applyPromptResponse(res);
       if (res.generated_prompt) {
-        setGeneratedPrompt(res.generated_prompt);
         setIsReady(true);
       }
     } catch (err: any) {
@@ -344,9 +364,7 @@ function CreateTemplateContent() {
         refinementInput.trim(),
         generatedPrompt
       );
-      if (res.generated_prompt) {
-        setGeneratedPrompt(res.generated_prompt);
-      }
+      applyPromptResponse(res);
       setRefinementInput("");
     } catch (err: any) {
       setError(err.message || "Failed to refine prompt.");
@@ -419,10 +437,13 @@ function CreateTemplateContent() {
   };
 
   const toggleZoneExpand = (id: string) => {
-    setExpandedZoneIds((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setExpandedZoneIds((prev) => {
+      const current = prev || expandedZoneIds;
+      return {
+        ...current,
+        [id]: !current[id],
+      };
+    });
   };
 
   const handleBuildOverlayAndPreview = () => {
@@ -640,6 +661,42 @@ function CreateTemplateContent() {
                   </div>
                 </div>
               ))}
+
+              {/* GPT/Gemini-style AI Thinking Indicator */}
+              {loading && (
+                <div className="flex justify-start animate-fade-in">
+                  <div className="max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed bg-slate-50 dark:bg-slate-950 border border-purple-500/30 text-slate-700 dark:text-slate-300 rounded-bl-none shadow-sm flex items-center gap-2.5">
+                    <div className="relative flex items-center justify-center p-1 rounded-lg bg-purple-500/10 text-purple-400">
+                      <Sparkles className="h-4 w-4 animate-spin text-purple-400" />
+                    </div>
+                    <div className="flex items-center gap-2 font-medium text-slate-600 dark:text-slate-300">
+                      <span>AI is thinking</span>
+                      <span className="flex gap-1 items-center">
+                        <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-bounce"></span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Chat Error Alert */}
+              {error && (
+                <div className="flex justify-start animate-fade-in">
+                  <div className="max-w-[85%] p-3.5 rounded-2xl text-xs leading-relaxed bg-red-500/10 border border-red-500/40 text-red-600 dark:text-red-300 rounded-bl-none shadow-sm flex items-center gap-2.5">
+                    <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                    <span className="flex-1 font-medium">{error}</span>
+                    <button
+                      onClick={() => setError(null)}
+                      className="text-red-400 hover:text-red-200 text-[10px] underline ml-1"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div ref={chatEndRef} />
             </div>
 
@@ -650,14 +707,15 @@ function CreateTemplateContent() {
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
                 placeholder="Message the Creative Director..."
-                className="flex-1 p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs"
+                disabled={loading}
+                className="flex-1 p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs disabled:opacity-60"
               />
               <button
                 onClick={handleSendChat}
-                disabled={loading}
-                className="p-3 bg-purple-600 hover:bg-purple-500 text-slate-900 dark:text-white rounded-xl shadow-md transition-all disabled:opacity-50"
+                disabled={loading || !chatInput.trim()}
+                className="p-3 bg-purple-600 hover:bg-purple-500 text-slate-900 dark:text-white rounded-xl shadow-md transition-all disabled:opacity-50 flex items-center justify-center"
               >
-                <Send className="h-4 w-4" />
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </button>
             </div>
           </div>
@@ -730,10 +788,38 @@ function CreateTemplateContent() {
             {/* Generated Prompt Editor & Refinement */}
             {(isReady || generatedPrompt) && (
               <div className="bg-white dark:bg-slate-900 border border-purple-900/40 rounded-2xl p-6 shadow-xl space-y-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-800 dark:text-purple-300 flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-purple-700 dark:text-purple-400" />
-                  Image Generation Prompt
-                </h3>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-purple-100 dark:border-purple-900/40">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-purple-800 dark:text-purple-300 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-700 dark:text-purple-400" />
+                    Image Generation Prompt
+                  </h3>
+
+                  {promptVersions.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">
+                        Version:
+                      </span>
+                      <select
+                        value={selectedPromptVersion}
+                        onChange={(e) => {
+                          const vNum = Number(e.target.value);
+                          setSelectedPromptVersion(vNum);
+                          const found = promptVersions.find((pv) => pv.version === vNum);
+                          if (found) {
+                            setGeneratedPrompt(found.prompt);
+                          }
+                        }}
+                        className="py-1 px-2.5 bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs font-medium text-purple-700 dark:text-purple-300 focus:outline-none focus:ring-1 focus:ring-purple-500 cursor-pointer max-w-[260px] truncate"
+                      >
+                        {promptVersions.map((pv) => (
+                          <option key={pv.version} value={pv.version}>
+                            {pv.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
 
                 <div>
                   <label className="block text-[10px] text-slate-600 dark:text-slate-400 uppercase font-semibold mb-1">

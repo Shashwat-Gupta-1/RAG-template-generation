@@ -25,13 +25,23 @@ export function TabStateProvider({ children }: { children: ReactNode }) {
   });
 
   const setTabState = (tab: keyof TabStateMap, partialState: Record<string, any>) => {
-    setTabStateInternal((prev) => ({
-      ...prev,
-      [tab]: {
-        ...prev[tab],
-        ...partialState,
-      },
-    }));
+    setTabStateInternal((prev) => {
+      const oldTabState = prev[tab] || {};
+      const newTabState = { ...oldTabState };
+      
+      for (const key in partialState) {
+        if (typeof partialState[key] === 'function') {
+          newTabState[key] = partialState[key](oldTabState[key]);
+        } else {
+          newTabState[key] = partialState[key];
+        }
+      }
+
+      return {
+        ...prev,
+        [tab]: newTabState,
+      };
+    });
   };
 
   const resetTabState = (tab: keyof TabStateMap) => {

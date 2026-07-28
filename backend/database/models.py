@@ -32,6 +32,7 @@ class Conversation(Base):
     # Creation Agent columns
     assumptions = Column(JSON, nullable=True)
     generated_prompt = Column(String, nullable=True)
+    prompt_versions = Column(JSON, nullable=True)
 
     # Bulk job columns
     job_status = Column(String, nullable=True)  # "processing" | "done" | "failed" | None

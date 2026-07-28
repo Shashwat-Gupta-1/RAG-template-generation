@@ -9,7 +9,7 @@ export interface Conversation {
   id: string;
   user_id: string;
   title: string;
-  conversation_type: 'single' | 'bulk' | 'creation_agent';
+  conversation_type: 'single' | 'bulk' | 'creation_agent' | string;
   template_folder?: string;
   template_id?: string;
   job_status?: string;
@@ -19,7 +19,8 @@ export interface Conversation {
   job_failed?: number;
   job_zip_path?: string;
   job_download_url?: string;
-  job_error?: string;
+  generated_prompt?: string;
+  has_image?: boolean;
   created_at: string;
   updated_at?: string;
 }
@@ -37,6 +38,7 @@ export interface Message {
 export interface AgentState {
   assumptions: Record<string, any>;
   generated_prompt: string;
+  prompt_versions?: Array<{ version: number; label: string; prompt: string }>;
 }
 
 export interface BulkJobStatus {

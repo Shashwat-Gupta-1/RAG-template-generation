@@ -52,7 +52,7 @@ function BulkGenerateContent() {
   const searchParams = useSearchParams();
   const convoId = searchParams.get("id");
 
-  const { state, updateState } = useTabState("bulk");
+  const { state, updateState, resetState } = useTabState("bulk");
 
   // Inputs
   const prompt = state.prompt ?? "";
@@ -69,10 +69,10 @@ function BulkGenerateContent() {
   const setBulkStarted = (val: boolean) => updateState({ bulkStarted: val });
 
   const selectedFolder = state.selectedFolder ?? null;
-  const setSelectedFolder = (val: string | null) => updateState({ selectedFolder: val });
+  const setSelectedFolder = (val: string | null | ((prev: string | null) => string | null)) => updateState({ selectedFolder: val });
 
   const selectedTemplateId = state.selectedTemplateId ?? null;
-  const setSelectedTemplateId = (val: string | null) => updateState({ selectedTemplateId: val });
+  const setSelectedTemplateId = (val: string | null | ((prev: string | null) => string | null)) => updateState({ selectedTemplateId: val });
 
   const previewB64 = state.previewB64 ?? null;
   const setPreviewB64 = (val: string | null) => updateState({ previewB64: val });
@@ -81,32 +81,32 @@ function BulkGenerateContent() {
   const setPreviewMode = (val: "live" | "adjust") => updateState({ previewMode: val });
 
   const previewTextValues = state.previewTextValues ?? {};
-  const setPreviewTextValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ previewTextValues: typeof val === 'function' ? val(previewTextValues) : val });
+  const setPreviewTextValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ previewTextValues: val });
 
   const canvasDimensions = state.canvasDimensions ?? { width: 1024, height: 1536 };
   const setCanvasDimensions = (val: { width: number; height: number }) => updateState({ canvasDimensions: val });
 
-  const overlayLayers = state.overlayLayers ?? [];
+  const overlayLayers: any[] = state.overlayLayers ?? [];
   const setOverlayLayers = (val: any[]) => updateState({ overlayLayers: val });
 
-  const excelColumns = state.excelColumns ?? [];
+  const excelColumns: string[] = state.excelColumns ?? [];
   const setExcelColumns = (val: string[]) => updateState({ excelColumns: val });
 
   const columnMapping = state.columnMapping ?? {};
-  const setColumnMapping = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ columnMapping: typeof val === 'function' ? val(columnMapping) : val });
+  const setColumnMapping = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ columnMapping: val });
 
   const layoutOverrides = state.layoutOverrides ?? {};
-  const setLayoutOverrides = (val: Record<string, { x: number; y: number }> | ((prev: Record<string, { x: number; y: number }>) => Record<string, { x: number; y: number }>)) => updateState({ layoutOverrides: typeof val === 'function' ? val(layoutOverrides) : val });
+  const setLayoutOverrides = (val: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => updateState({ layoutOverrides: val });
 
   const styleOverrides = state.styleOverrides ?? {};
-  const setStyleOverrides = (val: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => updateState({ styleOverrides: typeof val === 'function' ? val(styleOverrides) : val });
+  const setStyleOverrides = (val: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => updateState({ styleOverrides: val });
 
   // Direct Custom Values & AI Field Prompts for llm_can_invent: true fields
   const fieldValues = state.fieldValues ?? {};
-  const setFieldValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldValues: typeof val === 'function' ? val(fieldValues) : val });
+  const setFieldValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldValues: val });
 
   const fieldPrompts = state.fieldPrompts ?? {};
-  const setFieldPrompts = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldPrompts: typeof val === 'function' ? val(fieldPrompts) : val });
+  const setFieldPrompts = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldPrompts: val });
 
   // Caption Controls
   const customCaptionPrompt = state.customCaptionPrompt ?? "";
@@ -133,6 +133,7 @@ function BulkGenerateContent() {
 
   const excelInputRef = useRef<HTMLInputElement | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
+
 
 
   // Restore conversation if query param present
@@ -450,7 +451,7 @@ function BulkGenerateContent() {
   };
 
   const updateLayoutOverride = (layerId: string, axis: "x" | "y" | "width" | "height", val: number) => {
-    const origBox = overlayLayers.find((l) => l.id === layerId)?.box || { x: 0, y: 0, width: 100, height: 50 };
+    const origBox = overlayLayers.find((l: any) => l.id === layerId)?.box || { x: 0, y: 0, width: 100, height: 50 };
     const current = layoutOverrides[layerId] || { x: origBox.x, y: origBox.y, width: origBox.width, height: origBox.height };
     const next = { ...current, [axis]: val };
     setLayoutOverrides({ ...layoutOverrides, [layerId]: next });
@@ -975,7 +976,7 @@ function BulkGenerateContent() {
                 ) : (
                   <>
                     <Sparkles className="h-5 w-5" />
-                    <span>Start Bulk Job (Generate All Posters into ZIP) 🚀</span>
+                    <span>Start Bulk Job (Generate All Posters into ZIP)</span>
                   </>
                 )}
               </button>
@@ -1004,10 +1005,10 @@ function BulkGenerateContent() {
                           type="button"
                           onClick={handleResumeBatchJob}
                           disabled={startLoading}
-                          className="py-1 px-3 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-medium flex items-center gap-1 transition-all disabled:opacity-50 ml-1"
+                          className="py-1 px-3 bg-black/80 hover:bg-black text-white border border-slate-600 rounded-lg text-xs font-medium flex items-center gap-1 transition-all disabled:opacity-50 ml-1"
                         >
                           <RotateCcw className="h-3 w-3" />
-                          <span>Resume 🔄</span>
+                          <span>Resume</span>
                         </button>
                       )}
                     </div>
@@ -1073,7 +1074,7 @@ function BulkGenerateContent() {
                       className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-slate-900 dark:text-white font-semibold rounded-xl shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2 transition-all text-xs disabled:opacity-50"
                     >
                       <RotateCcw className="h-4 w-4" />
-                      <span>Resume Interrupted Batch (From Checkpoint) 🔄</span>
+                      <span>Resume Interrupted Batch (From Checkpoint) </span>
                     </button>
                   </div>
                 )}

@@ -143,13 +143,20 @@ export default function Sidebar({ onSelectConversation, activeConversationId }: 
     { label: "AI Template Agent", href: "/create-template", icon: Wand2 },
   ];
 
-  const pinnedConvos = conversations.filter((c) => pinnedIds.includes(c.id));
+  const completedConversations = conversations.filter((c) => {
+    if (c.id.startsWith("sample-")) {
+      return c.id !== "sample-3";
+    }
+    return c.has_image ?? (Boolean(c.template_folder && c.template_id) || Boolean(c.job_completed && c.job_completed > 0));
+  });
+
+  const pinnedConvos = completedConversations.filter((c) => pinnedIds.includes(c.id));
 
   // Calculate date 5 days ago to filter regular convos
   const fiveDaysAgo = new Date();
   fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
-  const regularConvos = conversations.filter((c) => {
+  const regularConvos = completedConversations.filter((c) => {
     if (pinnedIds.includes(c.id)) return false;
     if (!c.created_at) return true;
     return new Date(c.created_at) >= fiveDaysAgo;
@@ -319,7 +326,7 @@ export default function Sidebar({ onSelectConversation, activeConversationId }: 
               <div key={i} className="h-8 bg-slate-100 dark:bg-slate-800/50 rounded-lg animate-pulse" />
             ))}
           </div>
-        ) : conversations.length === 0 ? (
+        ) : completedConversations.length === 0 ? (
           <p className="text-xs text-slate-500 px-2 py-4 text-center">No past conversations yet</p>
         ) : (
           <div className="space-y-3">

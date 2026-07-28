@@ -1,0 +1,6 @@
+{
+  "name": "MS Fincap AI Intelligence",
+  "description": "Admin Intelligence Dashboard for MS Fincap with user directory, AI interaction logs, asset library, and poster template presets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

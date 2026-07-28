@@ -1,0 +1,53 @@
+{
+  "template_id": "backend engineer01",
+  "description": "Create visually engaging posters for tech conferences and job fairs to attract backend engineers.",
+  "type": "poster",
+  "tags": [
+    "backend engineer",
+    "tech conference poster",
+    "job fair flyer",
+    "software engineer",
+    "devops poster",
+    "fullstack engineer",
+    "web development poster",
+    "backend dev",
+    "engineer recruitment poster",
+    "java poster",
+    "python poster",
+    "software design",
+    "backend developer poster",
+    "tech recruitment poster",
+    "hacker poster"
+  ],
+  "base_image": "templates/backend engineer/backend engineer01/template.png",
+  "canvas": {
+    "width": 1024,
+    "height": 1280
+  },
+  "overlay_layers": [
+    {
+      "id": "field_1",
+      "type": "text",
+      "placeholder": "{{field_1}}",
+      "instruction": "Enter value for field_1",
+      "llm_can_invent": false,
+      "box": {
+        "x": 908,
+        "y": 432,
+        "width": 42,
+        "height": 27
+      },
+      "style": {
+        "font_family": "Poppins",
+        "font_size": 48,
+        "font_size_min": 20,
+        "font_weight": "bold",
+        "font_style": "normal",
+        "color": "#FFFFFF",
+        "align": "center",
+        "vertical_align": "middle"
+      },
+      "editable": true
+    }
+  ]
+}
