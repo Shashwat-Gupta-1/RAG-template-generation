@@ -495,19 +495,31 @@ export default function ZoneEditor({
     return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
   }
 
+  function getTouchCoords(e: React.TouchEvent<HTMLCanvasElement>): { x: number; y: number } | null {
+    const touch = e.touches[0] || e.changedTouches[0];
+    if (!touch || !canvasRef.current) return null;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = canvasRef.current.width / rect.width;
+    const scaleY = canvasRef.current.height / rect.height;
+    return { x: (touch.clientX - rect.left) * scaleX, y: (touch.clientY - rect.top) * scaleY };
+  }
+
   function hitDeleteButton(px: number, py: number): string | null {
     for (const z of zones) {
       const bx = z.dx + z.dw - 22, by = z.dy + 4;
-      if (px >= bx && px <= bx + 18 && py >= by && py <= by + 18) return z.zid;
+      // 24x24px touch target (from bx - 3 to bx + 21)
+      if (px >= bx - 3 && px <= bx + 21 && py >= by - 3 && py <= by + 21) return z.zid;
     }
     return null;
   }
 
   function hitEditButton(px: number, py: number): string | null {
     for (const z of zones) {
+      if (z.type === "image") continue;
       const bx = z.dx + z.dw - 22, by = z.dy + 4;
       const ex = bx - 22;
-      if (px >= ex && px <= ex + 18 && py >= by && py <= by + 18) return z.zid;
+      // 24x24px touch target (from ex - 3 to ex + 21)
+      if (px >= ex - 3 && px <= ex + 21 && py >= by - 3 && py <= by + 21) return z.zid;
     }
     return null;
   }
@@ -544,10 +556,8 @@ export default function ZoneEditor({
     return false;
   }
 
-  // ── Mouse Handlers ────────────────────────────────────────────────────────────
-  const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const { x, y } = getCanvasCoords(e);
-
+  // ── Unified Pointer / Mouse / Touch Handlers ──────────────────────────────
+  const handlePointerDown = (x: number, y: number) => {
     if (mode === "draw") {
       setIsDrawing(true);
       setDrawStart({ x, y });
@@ -559,6 +569,7 @@ export default function ZoneEditor({
     const delZid = hitDeleteButton(x, y);
     if (delZid) { removeZone(delZid); return; }
 
+    // Style popup opens ONLY when clicking the pencil edit icon
     const editZid = hitEditButton(x, y);
     if (editZid) {
       setSelectedZoneId(editZid);
@@ -589,23 +600,8 @@ export default function ZoneEditor({
     if (hitZid) {
       setSelectedZoneId(hitZid);
       const z = zones.find((z) => z.zid === hitZid)!;
+      // Start drag to reposition zone box. Do NOT open style popup on box click.
       setDragging({ zid: hitZid, offsetX: x - z.dx, offsetY: y - z.dy });
-
-      // Open styling popup automatically when clicking a text zone
-      if (z.type !== "image") {
-        setStylingFor(hitZid);
-        setStyleDraft({
-          font_family: z.font_family || "Poppins",
-          font_size: z.font_size || 32,
-          font_weight: z.font_weight || "bold",
-          color: z.color || "#FFFFFF",
-          align: z.align || "center",
-        });
-        setShowStyling(true);
-      } else {
-        setShowStyling(false);
-        setStylingFor(null);
-      }
     } else {
       setSelectedZoneId(null);
       setShowStyling(false);
@@ -613,9 +609,7 @@ export default function ZoneEditor({
     }
   };
 
-  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const { x, y } = getCanvasCoords(e);
-
+  const handlePointerMove = (x: number, y: number) => {
     if (mode === "draw" && isDrawing && drawStart) {
       setLiveRect({ x: Math.min(drawStart.x, x), y: Math.min(drawStart.y, y), w: Math.abs(x - drawStart.x), h: Math.abs(y - drawStart.y) });
       return;
@@ -647,7 +641,7 @@ export default function ZoneEditor({
     }
   };
 
-  const onMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerUp = () => {
     if (mode === "draw" && isDrawing && liveRect) {
       setIsDrawing(false);
       setDrawStart(null);
@@ -663,6 +657,34 @@ export default function ZoneEditor({
     }
     if (resizing) setResizing(null);
     if (dragging) setDragging(null);
+  };
+
+  const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const { x, y } = getCanvasCoords(e);
+    handlePointerDown(x, y);
+  };
+
+  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const { x, y } = getCanvasCoords(e);
+    handlePointerMove(x, y);
+  };
+
+  const onMouseUp = () => {
+    handlePointerUp();
+  };
+
+  const onTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const coords = getTouchCoords(e);
+    if (coords) handlePointerDown(coords.x, coords.y);
+  };
+
+  const onTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const coords = getTouchCoords(e);
+    if (coords) handlePointerMove(coords.x, coords.y);
+  };
+
+  const onTouchEnd = () => {
+    handlePointerUp();
   };
 
   // ── Zone Management ───────────────────────────────────────────────────────────
@@ -836,7 +858,7 @@ export default function ZoneEditor({
         />
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full"
+          className="absolute inset-0 w-full h-full touch-none"
           style={{
             cursor:
               mode === "draw"
@@ -851,6 +873,9 @@ export default function ZoneEditor({
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
           onMouseLeave={onMouseUp}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         />
 
         {/* ── Assignment popup ── */}

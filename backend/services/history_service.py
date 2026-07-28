@@ -34,7 +34,27 @@ async def list_conversations(db: AsyncSession, user_id: uuid.UUID, limit: int = 
         .order_by(Conversation.updated_at.desc())
         .limit(limit)
     )
-    return list(result.scalars().all())
+    convs = list(result.scalars().all())
+
+    if convs:
+        conv_ids = [c.id for c in convs]
+        msg_result = await db.execute(
+            select(Message.conversation_id)
+            .where(
+                Message.conversation_id.in_(conv_ids),
+                Message.output_file_path.isnot(None),
+                Message.output_file_path != ""
+            )
+        )
+        has_msg_image_set = set(msg_result.scalars().all())
+
+        for c in convs:
+            c.has_image = bool(
+                (c.template_folder and c.template_id) or
+                (c.id in has_msg_image_set) or
+                (c.job_status == "completed" or (c.job_completed or 0) > 0 or c.job_download_url)
+            )
+    return convs
 
 async def add_message(
     db: AsyncSession,

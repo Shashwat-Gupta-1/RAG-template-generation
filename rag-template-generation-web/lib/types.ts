@@ -19,7 +19,8 @@ export interface Conversation {
   job_failed?: number;
   job_zip_path?: string;
   job_download_url?: string;
-  job_error?: string;
+  generated_prompt?: string;
+  has_image?: boolean;
   created_at: string;
   updated_at?: string;
 }

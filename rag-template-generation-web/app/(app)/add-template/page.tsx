@@ -128,10 +128,13 @@ export default function AddTemplatePage() {
   };
 
   const toggleZoneExpand = (id: string) => {
-    setExpandedZoneIds((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setExpandedZoneIds((prev) => {
+      const current = prev || expandedZoneIds;
+      return {
+        ...current,
+        [id]: !current[id],
+      };
+    });
   };
 
   const buildAndValidateOverlay = (): { scaledLayers: OverlayLayer[]; errors: string[] } => {

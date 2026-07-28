@@ -50,7 +50,7 @@ function SingleGenerateContent() {
 
   const storedValues = state.storedValues ?? {};
   const setStoredValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => {
-    updateState({ storedValues: typeof val === 'function' ? val(storedValues) : val });
+    updateState({ storedValues: val });
   };
 
   const layers = state.layers ?? [];
@@ -66,7 +66,7 @@ function SingleGenerateContent() {
   const setCustomCaptionPrompt = (val: string) => updateState({ customCaptionPrompt: val });
 
   const fieldPrompts = state.fieldPrompts ?? {};
-  const setFieldPrompts = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldPrompts: typeof val === 'function' ? val(fieldPrompts) : val });
+  const setFieldPrompts = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldPrompts: val });
 
   const zoneEditorMode = state.zoneEditorMode ?? false;
   const setZoneEditorMode = (val: boolean) => updateState({ zoneEditorMode: val });
@@ -78,7 +78,7 @@ function SingleGenerateContent() {
   const setAssignedZoneFields = (val: Set<string>) => updateState({ assignedZoneFields: val });
 
   const zoneEditorKey = state.zoneEditorKey ?? 0;
-  const setZoneEditorKey = (val: number | ((prev: number) => number)) => updateState({ zoneEditorKey: typeof val === 'function' ? val(zoneEditorKey) : val });
+  const setZoneEditorKey = (val: number | ((prev: number) => number)) => updateState({ zoneEditorKey: val });
 
   const presetZones = state.presetZones ?? [];
   const setPresetZones = (val: DrawnZone[]) => updateState({ presetZones: val });

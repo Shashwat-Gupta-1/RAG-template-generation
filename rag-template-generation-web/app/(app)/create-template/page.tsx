@@ -73,11 +73,11 @@ function CreateTemplateContent() {
   const [conversationId, setConversationId] = useState<string | null>(convoIdParam);
   
   const step = state.step ?? 1;
-  const setStep = (val: number | ((prev: number) => number)) => updateState({ step: typeof val === 'function' ? val(step) : val });
+  const setStep = (val: number | ((prev: number) => number)) => updateState({ step: val });
 
   // Step 1: Chat & Assumption state
   const messages = state.messages ?? [];
-  const setMessages = (val: any) => updateState({ messages: typeof val === 'function' ? val(messages) : val });
+  const setMessages = (val: any) => updateState({ messages: val });
 
   const chatInput = state.chatInput ?? "";
   const setChatInput = (val: string) => updateState({ chatInput: val });
@@ -94,7 +94,7 @@ function CreateTemplateContent() {
     logo_position: "",
     mascot_position: "",
   };
-  const setAssumptions = (val: any) => updateState({ assumptions: typeof val === 'function' ? val(assumptions) : val });
+  const setAssumptions = (val: any) => updateState({ assumptions: val });
 
   const userEdits = state.userEdits ?? "";
   const setUserEdits = (val: string) => updateState({ userEdits: val });
@@ -155,13 +155,13 @@ function CreateTemplateContent() {
       llm_can_invent: false,
     },
   ];
-  const setZones = (val: any) => updateState({ zones: typeof val === 'function' ? val(zones) : val });
+  const setZones = (val: any) => updateState({ zones: val });
 
   const selectedZoneId = state.selectedZoneId ?? null;
   const setSelectedZoneId = (val: string | null) => updateState({ selectedZoneId: val });
 
   const expandedZoneIds = state.expandedZoneIds ?? { headline: true };
-  const setExpandedZoneIds = (val: any) => updateState({ expandedZoneIds: typeof val === 'function' ? val(expandedZoneIds) : val });
+  const setExpandedZoneIds = (val: any) => updateState({ expandedZoneIds: val });
 
   // Step 4: Overlay & Sample Preview state
   const overlayLayers = state.overlayLayers ?? [];
@@ -181,7 +181,7 @@ function CreateTemplateContent() {
   // Step 5: Save State
   const [existingCategories, setExistingCategories] = useState<string[]>([]);
   const selectedCategoryOption = state.selectedCategoryOption ?? "";
-  const setSelectedCategoryOption = (val: any) => updateState({ selectedCategoryOption: typeof val === 'function' ? val(selectedCategoryOption) : val });
+  const setSelectedCategoryOption = (val: any) => updateState({ selectedCategoryOption: val });
 
   const customCategory = state.customCategory ?? "";
   const setCustomCategory = (val: string) => updateState({ customCategory: val });
@@ -291,7 +291,7 @@ function CreateTemplateContent() {
     if (!chatInput.trim() || !conversationId) return;
     const userMsg = chatInput.trim();
     setChatInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
+    setMessages((prev) => [...(prev || []), { role: "user", content: userMsg }]);
     setLoading(true);
     setError(null);
 
@@ -299,12 +299,12 @@ function CreateTemplateContent() {
       const res = await agentChat(conversationId, userMsg);
       if (res.reply) {
         setMessages((prev) => [
-          ...prev,
+          ...(prev || []),
           { role: "assistant", content: res.reply },
         ]);
       }
       if (res.assumptions) {
-        setAssumptions((prev) => ({ ...prev, ...res.assumptions }));
+        setAssumptions((prev) => ({ ...(prev || {}), ...res.assumptions }));
       }
       if (res.ready) setIsReady(true);
       if (res.generated_prompt) setGeneratedPrompt(res.generated_prompt);
@@ -419,10 +419,13 @@ function CreateTemplateContent() {
   };
 
   const toggleZoneExpand = (id: string) => {
-    setExpandedZoneIds((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    setExpandedZoneIds((prev) => {
+      const current = prev || expandedZoneIds;
+      return {
+        ...current,
+        [id]: !current[id],
+      };
+    });
   };
 
   const handleBuildOverlayAndPreview = () => {

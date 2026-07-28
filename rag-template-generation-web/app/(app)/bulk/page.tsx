@@ -81,7 +81,7 @@ function BulkGenerateContent() {
   const setPreviewMode = (val: "live" | "adjust") => updateState({ previewMode: val });
 
   const previewTextValues = state.previewTextValues ?? {};
-  const setPreviewTextValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ previewTextValues: typeof val === 'function' ? val(previewTextValues) : val });
+  const setPreviewTextValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ previewTextValues: val });
 
   const canvasDimensions = state.canvasDimensions ?? { width: 1024, height: 1536 };
   const setCanvasDimensions = (val: { width: number; height: number }) => updateState({ canvasDimensions: val });
@@ -93,20 +93,20 @@ function BulkGenerateContent() {
   const setExcelColumns = (val: string[]) => updateState({ excelColumns: val });
 
   const columnMapping = state.columnMapping ?? {};
-  const setColumnMapping = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ columnMapping: typeof val === 'function' ? val(columnMapping) : val });
+  const setColumnMapping = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ columnMapping: val });
 
   const layoutOverrides = state.layoutOverrides ?? {};
-  const setLayoutOverrides = (val: Record<string, { x: number; y: number }> | ((prev: Record<string, { x: number; y: number }>) => Record<string, { x: number; y: number }>)) => updateState({ layoutOverrides: typeof val === 'function' ? val(layoutOverrides) : val });
+  const setLayoutOverrides = (val: Record<string, { x: number; y: number }> | ((prev: Record<string, { x: number; y: number }>) => Record<string, { x: number; y: number }>)) => updateState({ layoutOverrides: val });
 
   const styleOverrides = state.styleOverrides ?? {};
-  const setStyleOverrides = (val: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => updateState({ styleOverrides: typeof val === 'function' ? val(styleOverrides) : val });
+  const setStyleOverrides = (val: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => updateState({ styleOverrides: val });
 
   // Direct Custom Values & AI Field Prompts for llm_can_invent: true fields
   const fieldValues = state.fieldValues ?? {};
-  const setFieldValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldValues: typeof val === 'function' ? val(fieldValues) : val });
+  const setFieldValues = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldValues: val });
 
   const fieldPrompts = state.fieldPrompts ?? {};
-  const setFieldPrompts = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldPrompts: typeof val === 'function' ? val(fieldPrompts) : val });
+  const setFieldPrompts = (val: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => updateState({ fieldPrompts: val });
 
   // Caption Controls
   const customCaptionPrompt = state.customCaptionPrompt ?? "";

@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     openai_image_model: str = Field(default="gpt-image-2-2026-04-21", validation_alias="OPENAI_IMAGE_MODEL")
 
     free_model: str = Field(default="llama-3.3-70b-versatile", validation_alias="FREE_MODEL")
-    rag_score_threshold: float = 0.55
+    rag_score_threshold: float = 0.60
     ambiguity_gap: float = 0.15
     max_prompt_length: int = 500
     font_path: str = "fonts/NotoSans.ttf"
